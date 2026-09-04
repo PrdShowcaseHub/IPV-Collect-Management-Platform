@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>异常数据 - IPV采集管理平台</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    // 异常类型二级树
+    const EXCEPTION_TYPE_TREE = [
+      { lv1: '完整性', lv2: ['单字段非空', '组合非空', '填充率', '明细完整性', '分区完整性'] },
+      { lv1: '准确性', lv2: ['取值范围', '逻辑准确性', '引用准确性', '格式准确性'] },
+      { lv1: '及时性', lv2: ['产出时间', '更新频率', '采集延迟'] },
+      { lv1: '一致性', lv2: ['跨源一致性', '历史一致性', '表内一致性'] },
+    ];
+
+    const EXCEPTION_DATA = [
+      {
+        id: 1, collectTime: '2025-12-24 13:47:10', status: '未修复', infoType: '文本',
+        title: '"固态电池量产元年"行业迎来爆发式突破', source: '36氪', origin: 'https://36kr.com/information/travel/',
+        exceptions: [
+          { field: '二级分类', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+          { field: '信息来源', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+        ],
+      },
+      {
+        id: 2, collectTime: '2025-12-24 13:48:22', status: '未修复', infoType: '数据',
+        title: '国内生产总值指数（GDP增速）', source: '国家统计局', origin: 'https://www.stats.gov.cn/sj/',
+        exceptions: [
+          { field: '出台时间', typeLv1: '及时性', typeLv2: '产出时间', desc: '早于采集时间24小时' },
+        ],
+      },
+      {
+        id: 3, collectTime: '2025-12-24 13:50:11', status: '已修复', infoType: '文本',
+        title: '居民人均可支配收入稳步增长', source: '国家统计局', origin: 'https://www.stats.gov.cn/sj/',
+        exceptions: [
+          { field: '信息内容', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+        ],
+      },
+      {
+        id: 4, collectTime: '2025-12-24 13:52:33', status: '未修复', infoType: '文本',
+        title: '比亚迪发布中国首款4nm制程智驾芯片璇玑A3', source: '36氪', origin: 'https://36kr.com/',
+        exceptions: [
+          { field: '出台时间', typeLv1: '准确性', typeLv2: '逻辑准确性', desc: '未来时间，不合理' },
+        ],
+      },
+      {
+        id: 5, collectTime: '2025-12-24 13:55:08', status: '未修复', infoType: '数据',
+        title: '碳酸锂主力合约价格', source: '上海期货交易所', origin: 'https://www.shfe.com.cn/',
+        exceptions: [
+          { field: '具体数值', typeLv1: '准确性', typeLv2: '取值范围', desc: '超出合理区间 [8000, 30000]' },
+        ],
+      },
+      {
+        id: 6, collectTime: '2025-12-24 13:58:40', status: '已修复', infoType: '文本',
+        title: '电动汽车充电基础设施月度报告', source: '中国充电联盟', origin: 'http://www.evcipa.com/',
+        exceptions: [
+          { field: '信息来源', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+        ],
+      },
+      {
+        id: 7, collectTime: '2025-12-24 14:02:15', status: '未修复', infoType: '文本',
+        title: '新能源汽车下乡政策再加码', source: '发改委', origin: 'https://www.ndrc.gov.cn/',
+        exceptions: [
+          { field: '一级分类', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+          { field: '信息内容', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+        ],
+      },
+      {
+        id: 8, collectTime: '2025-12-24 14:05:30', status: '未修复', infoType: '数据',
+        title: '公共充电桩额定总功率突破4亿千瓦', source: '中国充电联盟', origin: 'http://www.evcipa.com/',
+        exceptions: [
+          { field: '采集时间', typeLv1: '及时性', typeLv2: '采集延迟', desc: '超出指定采集周期' },
+        ],
+      },
+      {
+        id: 9, collectTime: '2025-12-24 14:10:22', status: '已修复', infoType: '文本',
+        title: '消费者信心指数回升至89.5', source: '国家统计局', origin: 'https://www.stats.gov.cn/sj/',
+        exceptions: [
+          { field: '来源主体', typeLv1: '完整性', typeLv2: '单字段非空', desc: '值为空' },
+        ],
+      },
+      {
+        id: 10, collectTime: '2025-12-24 14:12:18', status: '未修复', infoType: '数据',
+        title: '磷酸铁锂电池能量密度突破180Wh/kg', source: '中国电池工业协会', origin: 'http://www.chinabattery.org/',
+        exceptions: [
+          { field: '具体数值', typeLv1: '准确性', typeLv2: '取值范围', desc: '超出合理区间 [80, 350]' },
+        ],
+      },
+    ];
+
+    // 格式化异常类型摘要（用于表格展示）
+    function formatExceptionTypes(exceptions) {
+      const types = {};
+      exceptions.forEach(e => {
+        const key = e.typeLv1;
+        if (!types[key]) types[key] = new Set();
+        types[key].add(e.typeLv2);
+      });
+      return Object.entries(types).map(([lv1, lv2s]) => {
+        return `<span class="tag red" style="margin-right:4px; margin-bottom:2px;">${lv1}/${[...lv2s].join('、')}</span>`;
+      }).join('');
+    }
+
+    // 格式化异常字段摘要
+    function formatExceptionFields(exceptions) {
+      return exceptions.map(e => `${e.field}：${e.desc}`).join('；');
+    }
+
+    function renderTable() {
+      const rows = EXCEPTION_DATA.map((row, idx) => `
+        <tr data-id="${row.id}">
+          <td class="text-secondary">${idx + 1}</td>
+          <td class="text-secondary">${row.collectTime}</td>
+          <td><span class="status-tag ${row.status === '已修复' ? 'repaired' : 'unrepaired'}">${row.status}</span></td>
+          <td><span class="tag ${row.infoType === '文本' ? 'blue' : 'green'}">${row.infoType}</span></td>
+          <td>${formatExceptionTypes(row.exceptions)}</td>
+          <td><span style="cursor:pointer;" onclick="openDetail(${row.id})">${row.title}</span></td>
+          <td class="text-clip-2 text-secondary" style="min-width:260px;">${formatExceptionFields(row.exceptions)}</td>
+          <td class="text-secondary">${row.source}</td>
+          <td class="text-ellipsis text-secondary"><a href="${row.origin}" target="_blank">${row.origin}</a></td>
+          <td class="operations">
+            <button class="link" onclick="openDetail(${row.id})">查看</button>
+            <button class="link" onclick="openCorrect(${row.id})">校正</button>
+          </td>
+        </tr>
+      `).join('');
+
+      const contentHtml = `
+        <div class="page-title">异常数据</div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="filter-bar">
+              <div class="filter-item">
+                <span class="label">信息标题：</span>
+                <input type="text" placeholder="请输入" />
+              </div>
+              <div class="filter-item">
+                <span class="label">采集时间：</span>
+                <div class="date-range">
+                  <input type="text" value="2025-12" placeholder="YYYY-MM" />
+                  <span>—</span>
+                  <input type="text" value="2026-01" placeholder="YYYY-MM" />
+                </div>
+              </div>
+              <div class="filter-item">
+                <span class="label">信息类型：</span>
+                <select>
+                  <option value="">全部</option>
+                  <option value="文本">文本</option>
+                  <option value="数据">数据</option>
+                </select>
+              </div>
+              <div class="filter-item">
+                <span class="label">异常类型：</span>
+                <select id="exc-type-lv1" onchange="updateExcTypeLv2(this.value)">
+                  <option value="">全部</option>
+                  ${EXCEPTION_TYPE_TREE.map(t => `<option value="${t.lv1}">${t.lv1}</option>`).join('')}
+                </select>
+                <select id="exc-type-lv2" style="margin-left:6px; width:140px;">
+                  <option value="">全部</option>
+                </select>
+              </div>
+              <div class="filter-item">
+                <span class="label">数据状态：</span>
+                <select>
+                  <option value="">全部</option>
+                  <option value="未修复">未修复</option>
+                  <option value="已修复">已修复</option>
+                </select>
+              </div>
+              <div class="filter-actions">
+                <button class="primary">查 询</button>
+                <button>重 置</button>
+                <button onclick="exportData()">导出</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>序号</th>
+                    <th>采集时间</th>
+                    <th>数据状态</th>
+                    <th>信息类型</th>
+                    <th>异常类型</th>
+                    <th>信息标题</th>
+                    <th>异常字段</th>
+                    <th>来源主体</th>
+                    <th>信息来源</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            ${renderPagination(400, 1, 10)}
+          </div>
+        </div>
+      `;
+      return contentHtml;
+    }
+
+    // 筛选区二级异常类型联动
+    function updateExcTypeLv2(lv1) {
+      const lv2Select = document.getElementById('exc-type-lv2');
+      const tree = EXCEPTION_TYPE_TREE.find(t => t.lv1 === lv1);
+      const options = '<option value="">全部</option>' + (tree ? tree.lv2.map(v => `<option value="${v}">${v}</option>`).join('') : '');
+      lv2Select.innerHTML = options;
+    }
+
+    // 查找某个字段是否异常
+    function findException(row, fieldName) {
+      return row.exceptions.find(e => e.field === fieldName);
+    }
+
+    // 渲染字段值（异常字段标红 + 下方展示异常类型）
+    function fieldItem(label, value, row, fieldName, isLink) {
+      const exc = findException(row, fieldName);
+      const valueHtml = isLink
+        ? `<a href="${value}" target="_blank">${value}</a>`
+        : value;
+      if (exc) {
+        return `
+          <div class="form-item exc-field">
+            <div class="form-label">${label}</div>
+            <div class="form-value exc-value">${valueHtml}</div>
+            <div class="exc-type">异常类型：${exc.typeLv1} / ${exc.typeLv2}（${exc.desc}）</div>
+          </div>
+        `;
+      }
+      return `
+        <div class="form-item">
+          <div class="form-label">${label}</div>
+          <div class="form-value">${valueHtml}</div>
+        </div>
+      `;
+    }
+
+    // 校正弹窗中渲染字段（可编辑，异常字段标红 + 异常类型提示）
+    function fieldEdit(label, value, row, fieldName, inputType) {
+      const exc = findException(row, fieldName);
+      const excHtml = exc ? `<div class="exc-type">异常类型：${exc.typeLv1} / ${exc.typeLv2}（${exc.desc}）</div>` : '';
+      const cls = exc ? 'form-item exc-field' : 'form-item';
+      let inputHtml = '';
+      if (inputType === 'textarea') {
+        inputHtml = `<textarea>${value || ''}</textarea>`;
+      } else if (inputType === 'select') {
+        inputHtml = `<select><option value="">请选择</option><option value="宏观环境">宏观环境</option><option value="技术参数">技术参数</option><option value="社会环境">社会环境</option></select>`;
+      } else {
+        inputHtml = `<input type="text" value="${value || ''}" />`;
+      }
+      return `
+        <div class="${cls}">
+          <div class="form-label ${exc ? 'required' : ''}">${label}</div>
+          ${inputHtml}
+          ${excHtml}
+        </div>
+      `;
+    }
+
+    // 异常数据详情弹窗
+    function openDetail(id) {
+      const row = EXCEPTION_DATA.find(r => r.id === id);
+      const isUnrepaired = row.status === '未修复';
+      const contentText = '央广网北京5月29日消息（记者姜鹏）2026年5月28日，比亚迪召开"敢为"智能化战略发布会。继为智能泊车安全兜底后，比亚迪在智能化领域再度加码，率先承诺为城市领航安全兜底1年，并宣布全系车型均可搭载天神之眼 B 辅助驾驶激光版，选装价格12000元，开创全民城市领航时代。此举旨在给予用户使用天神之眼的信心，推动辅助驾驶普及。此外，比亚迪发布中国首款4nm制程智驾芯片——璇玑A3，加速推进智能化下半场进程。';
+      const lv2 = row.infoType === '文本' ? '技术参数' : '宏观环境';
+      const lv3 = row.infoType === '文本' ? '电池' : '经济基础与购买力';
+
+      const html = `
+        <div class="modal-mask">
+          <div class="modal modal-lg">
+            <div class="modal-header">
+              <span class="modal-title">异常数据详情</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="alert ${isUnrepaired ? 'warning' : 'info'}">
+                <span class="alert-icon">${isUnrepaired ? '&#9888;' : '&#9432;'}</span>
+                <div class="alert-content">
+                  <strong>共检测到 ${row.exceptions.length} 处异常（红色标记字段为异常字段）</strong>
+                </div>
+              </div>
+
+              <div class="form-section-title">信息分类</div>
+              <div class="form-grid">
+                <div class="form-item">
+                  <div class="form-label">信息一级分类</div>
+                  <div class="form-value">客观信息</div>
+                </div>
+                ${fieldItem('信息二级分类', lv2, row, '二级分类')}
+                ${fieldItem('信息三级分类', lv3, row, '三级分类')}
+                <div class="form-item">
+                  <div class="form-label">信息类型</div>
+                  <div class="form-value"><span class="tag ${row.infoType === '文本' ? 'blue' : 'green'}">${row.infoType}</span></div>
+                </div>
+              </div>
+
+              <div class="form-section-title">内容信息</div>
+              <div class="form-grid">
+                <div class="form-item full">
+                  <div class="form-label">信息标题</div>
+                  <div class="form-value">${row.title}</div>
+                </div>
+                ${fieldItem('信息内容', contentText, row, '信息内容')}
+                ${fieldItem('出台时间', row.collectTime.substring(0, 7), row, '出台时间')}
+                <div class="form-item">
+                  <div class="form-label">政策生效时间</div>
+                  <div class="form-value">-</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">政策结束时间</div>
+                  <div class="form-value">-</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息来源范围</div>
+                  <div class="form-value">公开</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">性质</div>
+                  <div class="form-value">国家</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息来源地区</div>
+                  <div class="form-value">重庆市渝北区</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">适用类型</div>
+                  <div class="form-value">-</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">是否新技术</div>
+                  <div class="form-value">否</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">是否有地域限制</div>
+                  <div class="form-value">否</div>
+                </div>
+                ${fieldItem('来源主体', row.source, row, '来源主体')}
+                ${fieldItem('信息来源', row.origin, row, '信息来源', true)}
+                <div class="form-item full">
+                  <div class="form-label">备注</div>
+                  <div class="form-value">暂无内容</div>
+                </div>
+              </div>
+
+              <div class="form-section-title">状态变更</div>
+              <div class="alert info" style="margin-bottom:8px;">
+                <span class="alert-icon">&#9432;</span>
+                <div class="alert-content">
+                  如保存数据，系统将默认修复完成；数据状态将变更为"已修复"。如需再次调整，请前往"采集信息维护页"进行校正。
+                </div>
+              </div>
+              <div class="form-item">
+                <div class="form-label">数据状态</div>
+                <div class="form-value"><span class="status-tag ${row.status === '已修复' ? 'repaired' : 'unrepaired'}">${row.status}</span></div>
+              </div>
+
+              <div class="meta-info">
+                <div class="meta-item"><span class="meta-label">创建人：</span><span class="meta-value">XX</span></div>
+                <div class="meta-item"><span class="meta-label">创建时间：</span><span class="meta-value">2026-12-25 09:13</span></div>
+                <div class="meta-item"><span class="meta-label">更新人：</span><span class="meta-value">XX</span></div>
+                <div class="meta-item"><span class="meta-label">更新时间：</span><span class="meta-value">2026-12-25 09:13</span></div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>关 闭</button>
+              <button class="primary" onclick="alert('保存成功'); closeModal();">保 存</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    // 校正弹窗
+    function openCorrect(id) {
+      const row = EXCEPTION_DATA.find(r => r.id === id);
+      const lv2 = row.infoType === '文本' ? '技术参数' : '宏观环境';
+      const lv3 = row.infoType === '文本' ? '电池' : '经济基础与购买力';
+      const contentText = '央广网北京5月29日消息（记者姜鹏）2026年5月28日，比亚迪召开"敢为"智能化战略发布会。';
+
+      const html = `
+        <div class="modal-mask">
+          <div class="modal modal-lg">
+            <div class="modal-header">
+              <span class="modal-title">校正异常数据</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="alert warning">
+                <span class="alert-icon">&#9888;</span>
+                <div class="alert-content">
+                  <strong>共 ${row.exceptions.length} 处异常需校正（红色标记字段为异常字段）</strong>
+                  <div style="margin-top:4px;">校正后将自动变更数据状态为"已修复"</div>
+                </div>
+              </div>
+
+              <div class="form-section-title">信息分类</div>
+              <div class="form-grid">
+                <div class="form-item">
+                  <div class="form-label">信息一级分类</div>
+                  <input type="text" value="客观信息" disabled />
+                </div>
+                ${fieldEdit('信息二级分类', lv2, row, '二级分类', 'select')}
+                ${fieldEdit('信息三级分类', lv3, row, '三级分类')}
+                <div class="form-item">
+                  <div class="form-label">信息类型</div>
+                  <input type="text" value="${row.infoType}" disabled />
+                </div>
+              </div>
+
+              <div class="form-section-title">内容信息</div>
+              <div class="form-grid">
+                <div class="form-item full">
+                  <div class="form-label">信息标题</div>
+                  <input type="text" value="${escapeHtml(row.title)}" />
+                </div>
+                ${fieldEdit('信息内容', contentText, row, '信息内容', 'textarea')}
+                ${fieldEdit('出台时间', row.collectTime.substring(0, 7), row, '出台时间')}
+                <div class="form-item">
+                  <div class="form-label">政策生效时间</div>
+                  <input type="text" value="-" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">政策结束时间</div>
+                  <input type="text" value="-" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息来源范围</div>
+                  <input type="text" value="公开" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">性质</div>
+                  <input type="text" value="国家" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息来源地区</div>
+                  <input type="text" value="重庆市渝北区" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">适用类型</div>
+                  <input type="text" value="-" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">是否新技术</div>
+                  <input type="text" value="否" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">是否有地域限制</div>
+                  <input type="text" value="否" />
+                </div>
+                ${fieldEdit('来源主体', row.source, row, '来源主体')}
+                ${fieldEdit('信息来源', row.origin, row, '信息来源')}
+                <div class="form-item full">
+                  <div class="form-label">备注</div>
+                  <textarea placeholder="请输入校正说明"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="primary" onclick="alert('校正成功，状态已自动变更为已修复'); closeModal();">保 存</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    function exportData() { alert('导出成功'); }
+
+    function onPageReady() {
+      document.querySelectorAll('.page-btn[data-page]').forEach(b => b.addEventListener('click', e => {
+        const p = e.target.getAttribute('data-page');
+        if (p && !e.target.disabled) alert('跳转到第 ' + p + ' 页');
+      }));
+    }
+
+    initPage({
+      activeKey: '异常数据',
+      breadcrumb: ['异常数据'],
+      contentHtml: renderTable()
+    });
+  </script>
+</body>
+</html>

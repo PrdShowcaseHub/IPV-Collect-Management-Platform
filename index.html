@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPV采集管理平台</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <script src="assets/js/common.js"></script>
+  <script>
+    const ICONS_HOME = {
+      采集配置: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>',
+      数据类: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
+      文本类: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>',
+      异常数据: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      报告中心: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h6"/><path d="M16 13h0"/></svg>',
+    };
+
+    const MODULES = [
+      { name: '采集配置', desc: '管理网站采集规则与脚本', icon: ICONS_HOME.采集配置, href: 'pages/采集配置.html', color: '#4F6BED', bg: '#EEF1FD' },
+      { name: '数据类', desc: '数值类信息维护与校正', icon: ICONS_HOME.数据类, href: 'pages/采集信息维护-数据.html', color: '#16A34A', bg: '#D1FAE5' },
+      { name: '文本类', desc: '文本资讯维护与校正', icon: ICONS_HOME.文本类, href: 'pages/采集信息维护-文本.html', color: '#D97706', bg: '#FEF3C7' },
+      { name: '异常数据', desc: '异常数据检测与修复', icon: ICONS_HOME.异常数据, href: 'pages/异常数据.html', color: '#DC2626', bg: '#FEE2E2' },
+      { name: '报告中心', desc: '异常数据检测报告生成', icon: ICONS_HOME.报告中心, href: 'pages/报告中心.html', color: '#7C3AED', bg: '#EDE9FE' },
+    ];
+
+    const cards = MODULES.map(m => `
+      <a href="${m.href}" style="text-decoration:none; color:inherit;">
+        <div style="border:1px solid var(--border); border-radius:8px; padding:20px; transition:all 0.15s; display:flex; flex-direction:column; gap:8px;" onmouseover="this.style.borderColor='${m.color}'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)'" onmouseout="this.style.borderColor='var(--border)'; this.style.boxShadow='none'">
+          <div style="width:40px; height:40px; border-radius:8px; background:${m.bg}; color:${m.color}; display:flex; align-items:center; justify-content:center;">
+            <span style="width:20px; height:20px; display:flex;">${m.icon}</span>
+          </div>
+          <div style="font-size:15px; font-weight:600; color:var(--text-1);">${m.name}</div>
+          <div style="font-size:13px; color:var(--text-3);">${m.desc}</div>
+        </div>
+      </a>
+    `).join('');
+
+    initPage({
+      activeKey: '',
+      breadcrumb: ['首页'],
+      contentHtml: `
+        <div class="page-title">欢迎使用 IPV采集管理平台</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px;">
+          ${cards}
+        </div>
+      `
+    });
+  </script>
+</body>
+</html>

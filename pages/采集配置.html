@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>采集配置 - IPV采集管理平台</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    // 采集配置页面数据
+    const CONFIG_DATA = [
+      { id: 1, name: '36氪-汽车资讯', url: 'https://36kr.com/information/travel/', type: '文本', status: '启用', creator: '陈某', created: '2016-09-21 08:50:08', updater: '赵某', updated: '2016-09-21 08:50:08' },
+      { id: 2, name: '国家统计局-经济数据', url: 'https://www.stats.gov.cn/sj/', type: '数据', status: '启用', creator: '陈某', created: '2016-09-21 09:12:33', updater: '赵某', updated: '2016-09-22 10:23:18' },
+      { id: 3, name: '中国汽车工业协会', url: 'http://www.caam.org.cn/', type: '数据', status: '停用', creator: '李某', created: '2016-09-25 14:21:50', updater: '李某', updated: '2016-09-25 14:21:50' },
+      { id: 4, name: '财联社-快讯', url: 'https://www.cls.cn/telegraph', type: '文本', status: '启用', creator: '陈某', created: '2016-10-08 11:35:22', updater: '王某', updated: '2016-10-12 16:08:41' },
+      { id: 5, name: '发改委政策公告', url: 'https://www.ndrc.gov.cn/', type: '文本', status: '启用', creator: '李某', created: '2016-10-15 09:00:11', updater: '赵某', updated: '2016-10-15 09:00:11' },
+      { id: 6, name: '工信部-产业数据', url: 'https://www.miit.gov.cn/', type: '数据', status: '停用', creator: '陈某', created: '2016-11-02 13:45:09', updater: '陈某', updated: '2016-11-02 13:45:09' },
+      { id: 7, name: '36氪-科技频道', url: 'https://36kr.com/information/technology/', type: '文本', status: '启用', creator: '李某', created: '2016-11-20 10:18:55', updater: '王某', updated: '2016-11-25 09:32:14' },
+      { id: 8, name: '中国电池工业协会', url: 'http://www.chinabattery.org/', type: '数据', status: '启用', creator: '陈某', created: '2016-12-01 14:00:00', updater: '陈某', updated: '2016-12-01 14:00:00' },
+      { id: 9, name: '第一电动-新能源', url: 'https://www.d1ev.com/', type: '文本', status: '启用', creator: '李某', created: '2016-12-08 16:25:30', updater: '赵某', updated: '2016-12-10 11:15:42' },
+      { id: 10, name: '中国充电联盟统计', url: 'http://www.evcipa.com/', type: '数据', status: '停用', creator: '陈某', created: '2016-12-15 08:30:00', updater: '陈某', updated: '2016-12-15 08:30:00' },
+    ];
+
+    function renderTable() {
+      const rows = CONFIG_DATA.map((row, idx) => `
+        <tr data-id="${row.id}">
+          <td><label class="checkbox"><input type="checkbox" class="row-check"></label></td>
+          <td class="text-secondary">${idx + 1}</td>
+          <td><a href="javascript:;">${row.name}</a></td>
+          <td class="text-ellipsis text-secondary">${row.url}</td>
+          <td><span class="tag ${row.type === '文本' ? 'blue' : 'green'}">${row.type}</span></td>
+          <td><span class="status-tag ${row.status === '启用' ? 'enabled' : 'disabled'}">${row.status}</span></td>
+          <td class="text-secondary">${row.creator}</td>
+          <td class="text-secondary">${row.created}</td>
+          <td class="text-secondary">${row.updater}</td>
+          <td class="text-secondary">${row.updated}</td>
+          <td class="operations">
+            <button class="link" onclick="openDetail(${row.id})">查看</button>
+            <button class="link" onclick="openEdit(${row.id})">编辑</button>
+            <button class="link danger" onclick="openDelete(${row.id})">删除</button>
+            <button class="link" onclick="toggleStatus(${row.id})">${row.status === '启用' ? '停用' : '启用'}</button>
+          </td>
+        </tr>
+      `).join('');
+
+      const contentHtml = `
+        <div class="page-title">采集配置</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="filter-bar">
+              <div class="filter-item">
+                <span class="label">网站名称：</span>
+                <input type="text" placeholder="请输入" />
+              </div>
+              <div class="filter-item">
+                <span class="label">采集类型：</span>
+                <select>
+                  <option value="">请选择</option>
+                  <option value="文本">文本</option>
+                  <option value="数据">数据</option>
+                </select>
+              </div>
+              <div class="filter-item">
+                <span class="label">状态：</span>
+                <select>
+                  <option value="">全部</option>
+                  <option value="启用">启用</option>
+                  <option value="停用">停用</option>
+                </select>
+              </div>
+              <div class="filter-actions">
+                <button class="primary">查 询</button>
+                <button>重 置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="selected-info">已选择 <span class="num" id="selected-count">0</span> 项 <span class="clear" onclick="clearSelection()">清空</span></div>
+              <div class="toolbar-actions">
+                <button class="primary" onclick="openCreate()">+ 新建</button>
+                <button onclick="exportData()">导出</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th><label class="checkbox"><input type="checkbox" id="check-all"></label></th>
+                    <th>编号</th>
+                    <th>网站名称</th>
+                    <th>网站地址</th>
+                    <th>采集类型</th>
+                    <th>状态</th>
+                    <th>创建人</th>
+                    <th>创建时间</th>
+                    <th>更新人</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="table-body">${rows}</tbody>
+              </table>
+            </div>
+
+            ${renderPagination(400, 1, 10)}
+          </div>
+        </div>
+      `;
+      return contentHtml;
+    }
+
+    // 详情弹窗
+    function openDetail(id) {
+      const row = CONFIG_DATA.find(r => r.id === id);
+      const json = `{
+  "url": "${row.url}",
+  "actions": [
+    {
+      "type": "wait",
+      "timeseconds": "2"
+    },
+    {
+      "type": "iteratelist",
+      "locaterule": ".information-flow-list .information-flow-item",
+      "indexalias": "i",
+      "loopactions": [
+        {
+          "type": "textcontent",
+          "locaterule": ".title-wrapper.ellipsis-2",
+          "varname": "title[keyindex][i]"
+        },
+        {
+          "type": "insertdb",
+          "primarykeys": ["url"],
+          "columns": [],
+          "schema": "dataInfo",
+          "tablename": "report_news_info"
+        }
+      ]
+    }
+  ]
+}`;
+      const html = `
+        <div class="modal-mask">
+          <div class="modal modal-lg">
+            <div class="modal-header">
+              <span class="modal-title">采集配置详情</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="form-section-title">基本信息</div>
+              <div class="form-grid">
+                <div class="form-item">
+                  <div class="form-label">网站名称</div>
+                  <div class="form-value">${row.name}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">采集类型</div>
+                  <div class="form-value"><span class="tag ${row.type === '文本' ? 'blue' : 'green'}">${row.type}</span></div>
+                </div>
+                <div class="form-item full">
+                  <div class="form-label">网站地址</div>
+                  <div class="form-value"><a href="${row.url}" target="_blank">${row.url}</a></div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">状态</div>
+                  <div class="form-value"><span class="status-tag ${row.status === '启用' ? 'enabled' : 'disabled'}">${row.status}</span></div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">备注</div>
+                  <div class="form-value">暂无内容</div>
+                </div>
+              </div>
+              <div class="form-section-title">采集设置（JSON）</div>
+              <pre class="code-editor" style="max-height:280px; overflow:auto;">${escapeHtml(json)}</pre>
+              <div class="meta-info">
+                <div class="meta-item"><span class="meta-label">创建人：</span><span class="meta-value">${row.creator}</span></div>
+                <div class="meta-item"><span class="meta-label">创建时间：</span><span class="meta-value">${row.created}</span></div>
+                <div class="meta-item"><span class="meta-label">更新人：</span><span class="meta-value">${row.updater}</span></div>
+                <div class="meta-item"><span class="meta-label">更新时间：</span><span class="meta-value">${row.updated}</span></div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>关 闭</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    // 新建弹窗
+    function openCreate() {
+      openEditModal(null);
+    }
+
+    // 编辑弹窗
+    function openEdit(id) {
+      const row = CONFIG_DATA.find(r => r.id === id);
+      openEditModal(row);
+    }
+
+    function openEditModal(row) {
+      const isEdit = !!row;
+      const jsonTemplate = `{
+  "url": "${row ? row.url : 'https://'}",
+  "actions": [
+    {
+      "type": "wait",
+      "timeseconds": "2"
+    },
+    {
+      "type": "iteratelist",
+      "locaterule": ".information-flow-list .information-flow-item",
+      "indexalias": "i",
+      "loopactions": [
+        {
+          "type": "textcontent",
+          "locaterule": ".title-wrapper.ellipsis-2",
+          "varname": "title[keyindex][i]"
+        }
+      ]
+    }
+  ]
+}`;
+      const html = `
+        <div class="modal-mask">
+          <div class="modal modal-lg">
+            <div class="modal-header">
+              <span class="modal-title">${isEdit ? '编辑采集配置' : '新增采集配置'}</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="form-section-title">基本信息</div>
+              <div class="form-grid">
+                <div class="form-item">
+                  <div class="form-label required">网站名称</div>
+                  <input type="text" placeholder="请输入网站名称" value="${row ? escapeHtml(row.name) : ''}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label required">采集类型</div>
+                  <select>
+                    <option value="文本" ${row && row.type === '文本' ? 'selected' : ''}>文本</option>
+                    <option value="数据" ${row && row.type === '数据' ? 'selected' : ''}>数据</option>
+                  </select>
+                </div>
+                <div class="form-item full">
+                  <div class="form-label required">网站地址</div>
+                  <input type="text" placeholder="请输入网站地址" value="${row ? escapeHtml(row.url) : ''}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">状态</div>
+                  <select>
+                    <option value="启用" ${!row || row.status === '启用' ? 'selected' : ''}>启用</option>
+                    <option value="停用" ${row && row.status === '停用' ? 'selected' : ''}>停用</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">备注</div>
+                  <input type="text" placeholder="请输入备注" />
+                </div>
+              </div>
+
+              <div class="form-section-title">采集设置</div>
+              <div style="margin-bottom: 8px;">
+                <button style="margin-right: 8px;">上传 JSON 文件</button>
+                <span class="text-secondary" style="font-size:13px;">支持上传 .json 格式的采集脚本配置文件</span>
+              </div>
+              <div class="upload-area" style="margin-bottom: 12px;">
+                <div class="upload-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                <div>点击或拖拽文件到此区域上传</div>
+              </div>
+              <textarea class="code-editor" placeholder="请输入或编辑采集脚本 JSON 配置">${escapeHtml(jsonTemplate)}</textarea>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="primary" onclick="alert('保存成功'); closeModal();">保 存</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    // 删除确认
+    function openDelete(id) {
+      const row = CONFIG_DATA.find(r => r.id === id);
+      openConfirm({
+        title: '删除采集配置',
+        desc: `是否将采集配置「${row.name}」彻底删除？<br>一旦删除不可恢复，请确认后操作。`,
+        okText: '删 除',
+        onOk: () => { alert('删除成功'); }
+      });
+    }
+
+    // 切换状态
+    function toggleStatus(id) {
+      const row = CONFIG_DATA.find(r => r.id === id);
+      const action = row.status === '启用' ? '停用' : '启用';
+      openConfirm({
+        title: `${action}采集配置`,
+        desc: `确定要${action}采集配置「${row.name}」吗？`,
+        okText: action,
+        okType: action === '停用' ? 'danger' : 'primary',
+        onOk: () => { alert(`${action}成功`); }
+      });
+    }
+
+    function exportData() { alert('导出成功'); }
+    function clearSelection() { document.querySelectorAll('.row-check').forEach(c => c.checked = false); updateSelectedCount(); }
+    function updateSelectedCount() {
+      const n = document.querySelectorAll('.row-check:checked').length;
+      document.getElementById('selected-count').textContent = n;
+    }
+
+    function onPageReady() {
+      // 全选
+      document.getElementById('check-all').addEventListener('change', e => {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = e.target.checked);
+        updateSelectedCount();
+      });
+      document.querySelectorAll('.row-check').forEach(c => c.addEventListener('change', updateSelectedCount));
+      // 分页
+      document.querySelectorAll('.page-btn[data-page]').forEach(b => b.addEventListener('click', e => {
+        const p = e.target.getAttribute('data-page');
+        if (p && !e.target.disabled) alert('跳转到第 ' + p + ' 页');
+      }));
+    }
+
+    initPage({
+      activeKey: '采集配置',
+      breadcrumb: ['采集配置'],
+      contentHtml: renderTable()
+    });
+  </script>
+</body>
+</html>

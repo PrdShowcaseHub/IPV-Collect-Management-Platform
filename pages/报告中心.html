@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>报告中心 - IPV采集管理平台</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    // 报告列表数据
+    const REPORT_DATA = [
+      { id: 1, name: 'ipv_unified_wide_table_copy_2026-08-31 16:32:52数据质量检测报告', batchStart: '2026-08-25 00:00:00', batchEnd: '2026-08-31 16:32:52', totalCount: 100, accuracy: '98.11%', detectTime: '2026-08-31 16:32:52', type: '自动' },
+      { id: 2, name: 'ipv_unified_wide_table_copy_2026-08-24 16:32:52数据质量检测报告', batchStart: '2026-08-18 00:00:00', batchEnd: '2026-08-24 16:32:52', totalCount: 96, accuracy: '97.92%', detectTime: '2026-08-24 16:32:52', type: '自动' },
+      { id: 3, name: 'ipv_unified_wide_table_copy_2026-08-31 10:25:42数据质量检测报告', batchStart: '2026-08-01 00:00:00', batchEnd: '2026-08-31 10:25:42', totalCount: 312, accuracy: '95.83%', detectTime: '2026-08-31 10:25:42', type: '手动' },
+      { id: 4, name: 'ipv_unified_wide_table_copy_2026-08-17 16:32:52数据质量检测报告', batchStart: '2026-08-11 00:00:00', batchEnd: '2026-08-17 16:32:52', totalCount: 88, accuracy: '98.86%', detectTime: '2026-08-17 16:32:52', type: '自动' },
+      { id: 5, name: 'ipv_unified_wide_table_copy_2026-08-31 15:18:22数据质量检测报告', batchStart: '2026-07-01 00:00:00', batchEnd: '2026-08-31 15:18:22', totalCount: 524, accuracy: '96.37%', detectTime: '2026-08-31 15:18:22', type: '手动' },
+      { id: 6, name: 'ipv_unified_wide_table_copy_2026-08-10 16:32:52数据质量检测报告', batchStart: '2026-08-04 00:00:00', batchEnd: '2026-08-10 16:32:52', totalCount: 92, accuracy: '97.83%', detectTime: '2026-08-10 16:32:52', type: '自动' },
+      { id: 7, name: 'ipv_unified_wide_table_copy_2026-08-03 16:32:52数据质量检测报告', batchStart: '2026-07-28 00:00:00', batchEnd: '2026-08-03 16:32:52', totalCount: 85, accuracy: '98.82%', detectTime: '2026-08-03 16:32:52', type: '自动' },
+      { id: 8, name: 'ipv_unified_wide_table_copy_2026-08-30 09:30:11数据质量检测报告', batchStart: '2026-06-01 00:00:00', batchEnd: '2026-08-30 09:30:11', totalCount: 718, accuracy: '94.15%', detectTime: '2026-08-30 09:30:11', type: '手动' },
+      { id: 9, name: 'ipv_unified_wide_table_copy_2026-07-27 16:32:52数据质量检测报告', batchStart: '2026-07-21 00:00:00', batchEnd: '2026-07-27 16:32:52', totalCount: 78, accuracy: '98.72%', detectTime: '2026-07-27 16:32:52', type: '自动' },
+      { id: 10, name: 'ipv_unified_wide_table_copy_2026-07-20 16:32:52数据质量检测报告', batchStart: '2026-07-14 00:00:00', batchEnd: '2026-07-20 16:32:52', totalCount: 81, accuracy: '98.77%', detectTime: '2026-07-20 16:32:52', type: '自动' },
+    ];
+
+    function renderTable() {
+      const rows = REPORT_DATA.map((row, idx) => `
+        <tr data-id="${row.id}">
+          <td class="text-secondary">${idx + 1}</td>
+          <td>${row.name}</td>
+          <td class="text-secondary">${row.batchStart}<br>${row.batchEnd}</td>
+          <td>${row.totalCount}</td>
+          <td>${row.accuracy}</td>
+          <td class="text-secondary">${row.detectTime}</td>
+          <td><span class="tag ${row.type === '自动' ? 'blue' : 'purple'}">${row.type}</span></td>
+          <td class="operations">
+            <button class="link" onclick="downloadReport(${row.id})">下载</button>
+            <button class="link danger" onclick="openDelete(${row.id})">删除</button>
+          </td>
+        </tr>
+      `).join('');
+
+      const contentHtml = `
+        <div class="page-title">报告中心</div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="filter-bar">
+              <div class="filter-item">
+                <span class="label">报告名称：</span>
+                <input type="text" placeholder="请输入" />
+              </div>
+              <div class="filter-item">
+                <span class="label">生成方式：</span>
+                <select>
+                  <option value="">全部</option>
+                  <option value="自动">自动</option>
+                  <option value="手动">手动</option>
+                </select>
+              </div>
+              <div class="filter-item">
+                <span class="label">检测时间：</span>
+                <div class="date-range">
+                  <input type="date" value="2026-08-01" />
+                  <span>—</span>
+                  <input type="date" value="2026-09-04" />
+                </div>
+              </div>
+              <div class="filter-actions">
+                <button class="primary">查 询</button>
+                <button>重 置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="selected-info">共 ${REPORT_DATA.length} 份报告</div>
+              <div class="toolbar-actions">
+                <button class="primary" onclick="openGenerate()">+ 生成报告</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>序号</th>
+                    <th>报告名称</th>
+                    <th class="sortable" onclick="toggleSort('batchStart')">检测批次时间 <span class="sort-icon"></span></th>
+                    <th class="sortable" onclick="toggleSort('totalCount')">校验数据总条数 <span class="sort-icon"></span></th>
+                    <th class="sortable" onclick="toggleSort('accuracy')">数据质量正确率 <span class="sort-icon"></span></th>
+                    <th class="sortable" onclick="toggleSort('detectTime')">检测时间 <span class="sort-icon"></span></th>
+                    <th>生成方式</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            ${renderPagination(400, 1, 10)}
+          </div>
+        </div>
+      `;
+      return contentHtml;
+    }
+
+    // 生成手动报告弹窗（仅选择时间段）
+    function openGenerate() {
+      const today = new Date('2026-09-04');
+      const lastSunday = new Date(today);
+      lastSunday.setDate(today.getDate() - today.getDay() - 1);
+      const lastMonday = new Date(lastSunday);
+      lastMonday.setDate(lastSunday.getDate() - 6);
+
+      const fmt = d => d.toISOString().substring(0, 10);
+      const defaultStart = fmt(lastMonday);
+      const defaultEnd = fmt(lastSunday);
+
+      const html = `
+        <div class="modal-mask">
+          <div class="modal">
+            <div class="modal-header">
+              <span class="modal-title">生成数据质量检测报告（手动）</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="form-grid">
+                <div class="form-item full">
+                  <div class="form-label required">采集需求报告时间段</div>
+                  <div class="date-range-input" style="margin-top:4px;">
+                    <input type="date" id="period-start" value="${defaultStart}" />
+                    <span class="sep">—</span>
+                    <input type="date" id="period-end" value="${defaultEnd}" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="primary" id="confirm-generate">立即生成</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+
+      document.getElementById('confirm-generate').addEventListener('click', () => {
+        const start = document.getElementById('period-start').value;
+        const end = document.getElementById('period-end').value;
+        if (!start || !end) { alert('请选择报告时间段'); return; }
+        if (start > end) { alert('开始时间不能晚于结束时间'); return; }
+
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        const name = `ipv_unified_wide_table_copy_${ts}数据质量检测报告`;
+        closeModal();
+        setTimeout(() => {
+          openGenerating(name, start, end);
+        }, 200);
+      });
+    }
+
+    // 生成中提示
+    function openGenerating(name, start, end) {
+      const html = `
+        <div class="modal-mask visible">
+          <div class="modal" style="width:420px;">
+            <div class="modal-body" style="text-align:center; padding:32px 24px;">
+              <div style="font-size:48px; margin-bottom:16px; color:var(--primary);">
+                <svg width="48" height="48" viewBox="0 0 48 48" style="animation:spin 1s linear infinite;">
+                  <circle cx="24" cy="24" r="20" stroke="#E8E8E8" stroke-width="4" fill="none"/>
+                  <circle cx="24" cy="24" r="20" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#4F6BED'}" stroke-width="4" fill="none" stroke-dasharray="80 200" stroke-linecap="round"/>
+                </svg>
+                <style>@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }</style>
+              </div>
+              <div style="font-size:15px; color:var(--text-1); margin-bottom:8px;">报告生成中...</div>
+              <div style="font-size:12px; color:var(--text-3); line-height:1.6;">
+                正在汇总 ${start} ~ ${end} 时间段内的异常数据
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      const root = document.getElementById('modal-root');
+      root.innerHTML = html;
+
+      setTimeout(() => {
+        closeModal();
+        openConfirm({
+          title: '报告生成成功',
+          desc: `报告「${name}」已生成完成。<br>您可以在报告中心列表中下载该报告。`,
+          okText: '确定',
+          cancelText: '关闭',
+          okType: 'primary',
+          onOk: () => { location.reload(); }
+        });
+      }, 1000);
+    }
+
+    // 删除确认
+    function openDelete(id) {
+      const row = REPORT_DATA.find(r => r.id === id);
+      openConfirm({
+        title: '删除报告',
+        desc: `是否将报告「${row.name}」彻底删除？<br>一旦删除不可恢复，请确认后操作。`,
+        okText: '删 除',
+        onOk: () => { alert('删除成功'); }
+      });
+    }
+
+    function downloadReport(id) {
+      const row = REPORT_DATA.find(r => r.id === id);
+      alert(`开始下载：${row.name}.pdf`);
+    }
+
+    let sortField = null;
+    let sortDir = null; // 'asc' | 'desc' | null
+
+    function toggleSort(field) {
+      if (sortField !== field) {
+        sortField = field;
+        sortDir = 'asc';
+      } else if (sortDir === 'asc') {
+        sortDir = 'desc';
+      } else {
+        sortField = null;
+        sortDir = null;
+      }
+      // 更新所有排序icon
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+      });
+      if (sortField) {
+        const activeTh = document.querySelector(`th.sortable[onclick*="${sortField}"]`);
+        if (activeTh) activeTh.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+      applySort();
+    }
+
+    function applySort() {
+      if (!sortField) return;
+      REPORT_DATA.sort((a, b) => {
+        let va = a[sortField], vb = b[sortField];
+        if (sortField === 'accuracy') { va = parseFloat(va); vb = parseFloat(vb); }
+        else if (sortField === 'totalCount') { va = Number(va); vb = Number(vb); }
+        else { va = String(va); vb = String(vb); }
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      // 重新渲染表格
+      const tbody = document.querySelector('.data-table tbody');
+      tbody.innerHTML = REPORT_DATA.map((row, idx) => `
+        <tr data-id="${row.id}">
+          <td class="text-secondary">${idx + 1}</td>
+          <td>${row.name}</td>
+          <td class="text-secondary">${row.batchStart}<br>${row.batchEnd}</td>
+          <td>${row.totalCount}</td>
+          <td>${row.accuracy}</td>
+          <td class="text-secondary">${row.detectTime}</td>
+          <td><span class="tag ${row.type === '自动' ? 'blue' : 'purple'}">${row.type}</span></td>
+          <td class="operations">
+            <button class="link" onclick="downloadReport(${row.id})">下载</button>
+            <button class="link danger" onclick="openDelete(${row.id})">删除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function onPageReady() {
+      document.querySelectorAll('.page-btn[data-page]').forEach(b => b.addEventListener('click', e => {
+        const p = e.target.getAttribute('data-page');
+        if (p && !e.target.disabled) alert('跳转到第 ' + p + ' 页');
+      }));
+    }
+
+    initPage({
+      activeKey: '报告中心',
+      breadcrumb: ['报告中心'],
+      contentHtml: renderTable()
+    });
+  </script>
+</body>
+</html>

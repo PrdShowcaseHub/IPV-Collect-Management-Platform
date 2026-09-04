@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>采集信息维护-数据 - IPV采集管理平台</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    const DATA_INFO = [
+      { id: 1, time: '2025-12', lv1: '客观信息', lv2: '宏观环境', lv3: '经济基础与购买力', name: '国内生产总值指数（GDP增速）', unit: '万亿元', value: '0.05', predict: '预测', mark: '季度', source: '36氪', origin: 'https://www.stats.gov.cn/sj/' },
+      { id: 2, time: '2025-12', lv1: '客观信息', lv2: '宏观环境', lv3: '经济基础与购买力', name: '国内生产总值', unit: '万亿元', value: '126.06', predict: '历史', mark: '年度', source: '国家统计局', origin: 'https://www.stats.gov.cn/sj/' },
+      { id: 3, time: '2025-12', lv1: '客观信息', lv2: '宏观环境', lv3: '经济基础与购买力', name: '居民人均可支配收入', unit: '元', value: '41314', predict: '历史', mark: '年度', source: '国家统计局', origin: 'https://www.stats.gov.cn/sj/' },
+      { id: 4, time: '2025-12', lv1: '客观信息', lv2: '宏观环境', lv3: '经济基础与购买力', name: '消费者信心指数', unit: '%', value: '89.5', predict: '历史', mark: '月度', source: '国家统计局', origin: 'https://www.stats.gov.cn/sj/' },
+      { id: 5, time: '2025-12', lv1: '客观信息', lv2: '宏观环境', lv3: '需求', name: '油价', unit: '元/L', value: '6.8', predict: '历史', mark: '月度', source: '发改委', origin: 'https://www.ndrc.gov.cn/' },
+      { id: 6, time: '2025-12', lv1: '客观信息', lv2: '宏观环境', lv3: '成本', name: '碳酸锂主力', unit: '元/吨', value: '14600', predict: '历史', mark: '月度', source: '上海期货交易所', origin: 'https://www.shfe.com.cn/' },
+      { id: 7, time: '2025-12', lv1: '客观信息', lv2: '社会环境', lv3: '基础设施建设', name: '电动汽车充电基础设施（枪）总数', unit: '万个', value: '2009.2', predict: '历史', mark: '月度', source: '中国充电联盟', origin: 'http://www.evcipa.com/' },
+      { id: 8, time: '2025-12', lv1: '客观信息', lv2: '社会环境', lv3: '基础设施建设', name: '公共充电设施（枪）', unit: '万个', value: '856.7', predict: '历史', mark: '月度', source: '中国充电联盟', origin: 'http://www.evcipa.com/' },
+      { id: 9, time: '2025-12', lv1: '客观信息', lv2: '社会环境', lv3: '基础设施建设', name: '公共充电桩额定总功率', unit: '亿千瓦', value: '3.45', predict: '历史', mark: '月度', source: '中国充电联盟', origin: 'http://www.evcipa.com/' },
+      { id: 10, time: '2025-12', lv1: '客观信息', lv2: '技术参数', lv3: '电池', name: '磷酸铁锂电池能量密度', unit: 'Wh/kg', value: '160', predict: '预测', mark: '季度', source: '中国电池工业协会', origin: 'http://www.chinabattery.org/' },
+    ];
+
+    function renderTable() {
+      const rows = DATA_INFO.map((row, idx) => `
+        <tr data-id="${row.id}">
+          <td class="text-secondary">${idx + 1}</td>
+          <td class="text-secondary">${row.time}</td>
+          <td>${row.lv1}</td>
+          <td>${row.lv2}</td>
+          <td>${row.lv3}</td>
+          <td><span style="cursor:pointer;" onclick="openDetail(${row.id})">${row.name}</span></td>
+          <td class="text-secondary">${row.unit}</td>
+          <td>${row.value}</td>
+          <td><span class="tag ${row.predict === '预测' ? 'orange' : 'blue'}">${row.predict}</span></td>
+          <td class="text-secondary">${row.mark}</td>
+          <td class="text-secondary">${row.source}</td>
+          <td class="text-ellipsis text-secondary"><a href="${row.origin}" target="_blank">${row.origin}</a></td>
+          <td class="operations">
+            <button class="link" onclick="openDetail(${row.id})">查看</button>
+            <button class="link" onclick="openCorrect(${row.id})">校正</button>
+            <button class="link danger" onclick="openDiscard(${row.id})">作废</button>
+          </td>
+        </tr>
+      `).join('');
+
+      const contentHtml = `
+        <div class="page-title">采集信息维护-数据类</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="filter-bar">
+              <div class="filter-item">
+                <span class="label">信息分类：</span>
+                <div id="category-cascader"></div>
+              </div>
+              <div class="filter-item">
+                <span class="label">信息名称：</span>
+                <input type="text" placeholder="请输入" />
+              </div>
+              <div class="filter-item">
+                <span class="label">数据所属时间段：</span>
+                <div class="date-range">
+                  <input type="month" value="2025-12" />
+                  <span>—</span>
+                  <input type="month" value="2026-01" />
+                </div>
+              </div>
+              <div class="filter-item">
+                <span class="label">时间标记：</span>
+                <select>
+                  <option value="">全部</option>
+                  <option>年度</option>
+                  <option>季度</option>
+                  <option>月度</option>
+                </select>
+              </div>
+              <div class="filter-actions">
+                <button class="primary">查 询</button>
+                <button>重 置</button>
+                <button onclick="exportData()">导出</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>序号</th>
+                    <th>出台时间</th>
+                    <th>信息一级分类</th>
+                    <th>信息二级分类</th>
+                    <th>信息三级分类</th>
+                    <th>信息名称</th>
+                    <th>单位</th>
+                    <th>数值</th>
+                    <th>预测标记</th>
+                    <th>时间标记</th>
+                    <th>来源主体</th>
+                    <th>信息来源</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            ${renderPagination(400, 1, 10)}
+          </div>
+        </div>
+      `;
+      return contentHtml;
+    }
+
+    // 详情弹窗
+    function openDetail(id) {
+      const row = DATA_INFO.find(r => r.id === id);
+      const html = `
+        <div class="modal-mask">
+          <div class="modal modal-lg">
+            <div class="modal-header">
+              <span class="modal-title">采集信息详情-数据</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="form-grid">
+                <div class="form-item">
+                  <div class="form-label">信息一级分类</div>
+                  <div class="form-value">${row.lv1}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息二级分类</div>
+                  <div class="form-value">${row.lv2}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息三级分类</div>
+                  <div class="form-value">${row.lv3}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息名称</div>
+                  <div class="form-value">${row.name}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">来源主体</div>
+                  <div class="form-value">${row.source}</div>
+                </div>
+                <div class="form-item full">
+                  <div class="form-label">信息来源</div>
+                  <div class="form-value"><a href="${row.origin}" target="_blank">${row.origin}</a></div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">计量单位</div>
+                  <div class="form-value">${row.unit}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">出台时间</div>
+                  <div class="form-value">${row.time}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">具体数值</div>
+                  <div class="form-value" style="font-size:18px; font-weight:500;">${row.value}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">时间标记</div>
+                  <div class="form-value">${row.mark}</div>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">预测标记</div>
+                  <div class="form-value"><span class="tag ${row.predict === '预测' ? 'orange' : 'blue'}">${row.predict}</span></div>
+                </div>
+                <div class="form-item full">
+                  <div class="form-label">备注</div>
+                  <div class="form-value">暂无内容</div>
+                </div>
+              </div>
+
+              <div class="meta-info">
+                <div class="meta-item"><span class="meta-label">创建人：</span><span class="meta-value">XX</span></div>
+                <div class="meta-item"><span class="meta-label">创建时间：</span><span class="meta-value">2026-12-25 09:13</span></div>
+                <div class="meta-item"><span class="meta-label">更新人：</span><span class="meta-value">XX</span></div>
+                <div class="meta-item"><span class="meta-label">更新时间：</span><span class="meta-value">2026-12-25 09:13</span></div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>关 闭</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    // 校正弹窗
+    function openCorrect(id) {
+      const row = DATA_INFO.find(r => r.id === id);
+      const html = `
+        <div class="modal-mask">
+          <div class="modal modal-lg">
+            <div class="modal-header">
+              <span class="modal-title">校正采集信息-数据</span>
+              <span class="modal-close" data-close>&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="form-grid">
+                <div class="form-item">
+                  <div class="form-label">信息一级分类</div>
+                  <select>
+                    <option selected>${row.lv1}</option>
+                    <option>客观信息</option>
+                    <option>统计信息</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息二级分类</div>
+                  <select>
+                    <option selected>${row.lv2}</option>
+                    <option>宏观环境</option>
+                    <option>技术参数</option>
+                    <option>社会环境</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息三级分类</div>
+                  <select>
+                    <option selected>${row.lv3}</option>
+                    <option>经济基础与购买力</option>
+                    <option>基础设施建设</option>
+                    <option>电池</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">信息名称</div>
+                  <input type="text" value="${escapeHtml(row.name)}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">来源主体</div>
+                  <input type="text" value="${escapeHtml(row.source)}" />
+                </div>
+                <div class="form-item full">
+                  <div class="form-label">信息来源</div>
+                  <input type="text" value="${escapeHtml(row.origin)}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">计量单位</div>
+                  <input type="text" value="${row.unit}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">出台时间</div>
+                  <input type="month" value="${row.time}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">具体数值</div>
+                  <input type="text" value="${row.value}" />
+                </div>
+                <div class="form-item">
+                  <div class="form-label">时间标记</div>
+                  <select>
+                    <option ${row.mark === '年度' ? 'selected' : ''}>年度</option>
+                    <option ${row.mark === '季度' ? 'selected' : ''}>季度</option>
+                    <option ${row.mark === '月度' ? 'selected' : ''}>月度</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <div class="form-label">预测标记</div>
+                  <select>
+                    <option ${row.predict === '历史' ? 'selected' : ''}>历史</option>
+                    <option ${row.predict === '预测' ? 'selected' : ''}>预测</option>
+                  </select>
+                </div>
+                <div class="form-item full">
+                  <div class="form-label">备注</div>
+                  <textarea placeholder="请输入备注">${row.note || ''}</textarea>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="primary" onclick="alert('校正成功'); closeModal();">保 存</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    // 作废确认
+    function openDiscard(id) {
+      const row = DATA_INFO.find(r => r.id === id);
+      openConfirm({
+        title: '作废采集信息',
+        desc: `是否将采集信息「${row.name}」作废？<br>作废后该条数据将不在正式业务场景使用，请确认后操作。`,
+        okText: '作 废',
+        onOk: () => { alert('作废成功'); }
+      });
+    }
+
+    function exportData() { alert('导出成功'); }
+
+    function onPageReady() {
+      // 初始化信息分类联级选择器
+      const cascaderHtml = createCascader('请选择信息分类', (path) => {
+        console.log('选中分类：', path);
+      });
+      document.getElementById('category-cascader').innerHTML = cascaderHtml;
+
+      document.querySelectorAll('.page-btn[data-page]').forEach(b => b.addEventListener('click', e => {
+        const p = e.target.getAttribute('data-page');
+        if (p && !e.target.disabled) alert('跳转到第 ' + p + ' 页');
+      }));
+    }
+
+    initPage({
+      activeKey: '采集信息维护-数据',
+      breadcrumb: ['采集信息维护', '数据类'],
+      contentHtml: renderTable()
+    });
+  </script>
+</body>
+</html>
