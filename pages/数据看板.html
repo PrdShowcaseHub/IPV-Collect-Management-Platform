@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据看板 - IPV数据管理平台</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    function renderPage() {
+      const contentHtml = `
+        <div class="page-title">数据看板</div>
+
+        <div class="card">
+          <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:360px;text-align:center;">
+            <div style="width:64px;height:64px;border-radius:16px;background:var(--primary-lighter);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+            </div>
+            <div style="font-size:15px;font-weight:600;color:var(--text-1);margin-bottom:6px;">数据看板</div>
+            <div style="font-size:13px;color:var(--text-3);max-width:360px;">该模块用于展示 IPV 预测数据的可视化看板，需求待补充。</div>
+          </div>
+        </div>
+      `;
+      initPage({ activeKey: '数据看板', contentHtml });
+    }
+
+    function onPageReady() {}
+
+    // 页面加载即渲染
+    renderPage();
+  </script>
+</body>
+</html>

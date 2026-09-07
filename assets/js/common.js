@@ -1,4 +1,4 @@
-/* ===== IPV采集管理平台 - 通用脚本 ===== */
+/* ===== IPV数据管理平台 - 通用脚本 ===== */
 
 // SVG icon 集 (Lucide style)
 const ICONS = {
@@ -7,20 +7,31 @@ const ICONS = {
   文本类: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>',
   异常数据: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
   报告中心: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h6"/><path d="M16 13h0"/></svg>',
+  工作台: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  审批中心: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  数据看板: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
 };
 
-// 菜单配置
+// 菜单配置（两级：一级分组 + 二级菜单）
 const MENU_CONFIG = [
-  { key: '采集配置', label: '采集配置', icon: ICONS.采集配置, href: '../pages/采集配置.html' },
   {
-    group: '采集信息维护',
+    group: '预测数据管理',
     items: [
-      { key: '采集信息维护-数据', label: '数据类', icon: ICONS.数据类, href: '../pages/采集信息维护-数据.html' },
-      { key: '采集信息维护-文本', label: '文本类', icon: ICONS.文本类, href: '../pages/采集信息维护-文本.html' },
+      { key: '工作台', label: '工作台', icon: ICONS.工作台, href: '../pages/工作台.html' },
+      { key: '审批中心', label: '审批中心', icon: ICONS.审批中心, href: '../pages/审批中心.html' },
+      { key: '数据看板', label: '数据看板', icon: ICONS.数据看板, href: '../pages/数据看板.html' },
     ],
   },
-  { key: '异常数据', label: '异常数据', icon: ICONS.异常数据, href: '../pages/异常数据.html' },
-  { key: '报告中心', label: '报告中心', icon: ICONS.报告中心, href: '../pages/报告中心.html' },
+  {
+    group: '采集数据管理',
+    items: [
+      { key: '采集配置', label: '采集配置', icon: ICONS.采集配置, href: '../pages/采集配置.html' },
+      { key: '采集信息维护-数据', label: '数据类', icon: ICONS.数据类, href: '../pages/采集信息维护-数据.html' },
+      { key: '采集信息维护-文本', label: '文本类', icon: ICONS.文本类, href: '../pages/采集信息维护-文本.html' },
+      { key: '异常数据', label: '异常数据', icon: ICONS.异常数据, href: '../pages/异常数据.html' },
+      { key: '报告中心', label: '报告中心', icon: ICONS.报告中心, href: '../pages/报告中心.html' },
+    ],
+  },
 ];
 
 /**
@@ -29,55 +40,54 @@ const MENU_CONFIG = [
  */
 function renderSidebar(activeKey) {
   let html = `
-    <div class="sidebar">
-      <div class="sidebar-logo">
-        <span class="logo-icon">IPV</span>
-        <span class="logo-text">IPV采集管理平台</span>
-      </div>
-      <div class="sidebar-menu">
+    <aside class="sidebar">
+      <nav class="sidebar-body">
   `;
 
   MENU_CONFIG.forEach(item => {
     if (item.group) {
-      html += `<div class="menu-group-title">${item.group}</div>`;
+      html += `<div class="sb-menu-group"><div class="sb-section-title">${item.group}</div>`;
       item.items.forEach(sub => {
         const active = sub.key === activeKey ? 'active' : '';
         html += `
-          <a class="menu-item ${active}" href="${sub.href}">
-            <span class="menu-icon">${sub.icon}</span>
+          <a class="sb-nav-btn ${active}" href="${sub.href}">
+            <span class="sb-nav-ico">${sub.icon}</span>
             <span>${sub.label}</span>
           </a>
         `;
       });
+      html += `</div>`;
     } else {
       const active = item.key === activeKey ? 'active' : '';
       html += `
-        <a class="menu-item ${active}" href="${item.href}">
-          <span class="menu-icon">${item.icon}</span>
+        <div class="sb-menu-group"><a class="sb-nav-btn ${active}" href="${item.href}">
+          <span class="sb-nav-ico">${item.icon}</span>
           <span>${item.label}</span>
-        </a>
+        </a></div>
       `;
     }
   });
 
   html += `
-      </div>
-      <div class="sidebar-footer">
-        IPV Admin v1.0.0
-      </div>
-    </div>
+      </nav>
+      <div class="sidebar-foot">IPV Admin v1.0.0</div>
+    </aside>
   `;
   return html;
 }
 
 /**
  * 渲染顶部栏
- * @param {string[]} breadcrumb 面包屑路径
  */
-function renderHeader(breadcrumb) {
+function renderHeader() {
+  // 顶部深蓝通栏两段式：左品牌 + 右操作/用户（面包屑移到页面内部，避免与页面标题重复）
   return `
     <div class="header">
-      <div></div>
+      <div class="header-left">
+        <span class="header-logo-ico">IPV</span>
+        <span class="header-logo-name">IPV数据管理平台</span>
+      </div>
+      <div class="header-spacer"></div>
       <div class="header-right">
         <div class="header-icon" title="通知">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -111,7 +121,7 @@ function renderFooter() {
         <a href="javascript:;">隐私</a>
         <a href="javascript:;">条款</a>
       </div>
-      <div>copyright &copy; 2026 IPV采集管理平台</div>
+      <div>copyright &copy; 2026 IPV数据管理平台</div>
     </div>
   `;
 }
@@ -120,20 +130,21 @@ function renderFooter() {
  * 初始化页面布局
  * @param {object} options
  * @param {string} options.activeKey 当前激活菜单
- * @param {string[]} options.breadcrumb 面包屑
  * @param {string} options.contentHtml 内容HTML
  */
 function initPage(options) {
-  const { activeKey, breadcrumb, contentHtml } = options;
+  const { activeKey, contentHtml } = options;
   const layoutHtml = `
     <div class="layout">
-      ${renderSidebar(activeKey)}
-      <div class="main">
-        ${renderHeader(breadcrumb)}
-        <div class="content">
-          ${contentHtml}
+      ${renderHeader()}
+      <div class="layout-body">
+        ${renderSidebar(activeKey)}
+        <div class="main">
+          <div class="content">
+            ${contentHtml}
+          </div>
+          ${renderFooter()}
         </div>
-        ${renderFooter()}
       </div>
     </div>
     <div id="modal-root"></div>

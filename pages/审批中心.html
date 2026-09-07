@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>审批中心 - IPV数据管理平台</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <script src="../assets/js/common.js"></script>
+  <script>
+    // 版本号规则：{年份}-{A/B}-IPV【{Draft/Update/Publish}_{MMDD}】
+    // A=上半年 B=下半年
+    // Draft=过程版  Update=更新版  Publish=发布版
+
+    const YEARS = ['2026', '2025', '2024'];
+    const HALF = [
+      { value: 'A', label: 'A · 上半年' },
+      { value: 'B', label: 'B · 下半年' },
+    ];
+    const UPDATE_TYPES = [
+      { value: 'Draft', label: 'Draft · 过程版' },
+      { value: 'Update', label: 'Update · 更新版' },
+      { value: 'Publish', label: 'Publish · 发布版' },
+    ];
+
+    // 构造版本号字符串
+    function composeVersion(year, half, type, date) {
+      return `${year}-${half}-IPV【${type}_${date}】`;
+    }
+    // 解析版本号
+    function parseVersion(v) {
+      const m = v.match(/^(\d{4})-([AB])-IPV【(Draft|Update|Publish)_(\d{4})】$/);
+      if (!m) return null;
+      return { year: m[1], half: m[2], type: m[3], date: m[4] };
+    }
+    // MMDD 日期选项（0101 ~ 1231）
+    const MMDD_OPTIONS = (() => {
+      const arr = [];
+      for (let m = 1; m <= 12; m++) {
+        for (let d = 1; d <= 31; d++) {
+          const mm = String(m).padStart(2, '0');
+          const dd = String(d).padStart(2, '0');
+          arr.push({ value: mm + dd, label: `${mm}/${dd}` });
+        }
+      }
+      return arr;
+    })();
+
+    // 模拟数据
+    const APPROVAL_DATA = [
+      {
+        id: 1, version: '2026-A-IPV【Draft_0901】',
+        submitTime: '2026-09-02 09:15:32', submitter: '吴安燕',
+        status: '审批中', remark: '上半年过程版数据，请审批',
+        fileName: 'IPV预测数据_2026-A-IPV【Draft_0901】.xlsx', fileSize: '245 KB',
+      },
+      {
+        id: 2, version: '2026-B-IPV【Draft_0820】',
+        submitTime: '2026-08-21 14:30:08', submitter: '杨选',
+        status: '待发布', remark: '下半年过程版数据',
+        approveTime: '2026-08-22 09:15:00',
+        fileName: 'IPV预测数据_2026-B-IPV【Draft_0820】.xlsx', fileSize: '312 KB',
+      },
+      {
+        id: 3, version: '2026-A-IPV【Publish_0815】',
+        submitTime: '2026-08-16 10:22:45', submitter: '吴安燕',
+        status: '发布版', remark: '上半年正式发布版',
+        approveTime: '2026-08-16 15:30:00',
+        fileName: 'IPV预测数据_2026-A-IPV【Publish_0815】.xlsx', fileSize: '298 KB',
+        publishTime: '2026-08-17 16:00:00',
+      },
+      {
+        id: 4, version: '2026-A-IPV【Update_0810】',
+        submitTime: '2026-08-11 16:05:19', submitter: '杨选',
+        status: '发布版', remark: '上半年更新发布版（已有Publish后再次发布）',
+        approveTime: '2026-08-11 17:40:00',
+        fileName: 'IPV预测数据_2026-A-IPV【Update_0810】.xlsx', fileSize: '267 KB',
+        publishTime: '2026-08-12 09:20:00',
+      },
+      {
+        id: 5, version: '2026-B-IPV【Draft_0805】',
+        submitTime: '2026-08-06 09:48:33', submitter: '吴安燕',
+        status: '审批中', remark: '下半年过程版',
+        fileName: 'IPV预测数据_2026-B-IPV【Draft_0805】.xlsx', fileSize: '280 KB',
+      },
+      {
+        id: 6, version: '2026-A-IPV【Draft_0728】',
+        submitTime: '2026-07-29 11:20:10', submitter: '杨选',
+        status: '已驳回', remark: '上半年过程版',
+        rejectReason: '动力结构占比与历史偏差较大，请重新校验',
+        fileName: 'IPV预测数据_2026-A-IPV【Draft_0728】.xlsx', fileSize: '256 KB',
+      },
+      {
+        id: 7, version: '2026-A-IPV【Publish_0720】',
+        submitTime: '2026-07-21 13:55:42', submitter: '吴安燕',
+        status: '发布版', remark: '',
+        approveTime: '2026-07-21 16:20:00',
+        fileName: 'IPV预测数据_2026-A-IPV【Publish_0720】.xlsx', fileSize: '291 KB',
+        publishTime: '2026-07-22 10:30:00',
+      },
+      {
+        id: 8, version: '2026-A-IPV【Draft_0715】',
+        submitTime: '2026-07-16 08:30:00', submitter: '杨选',
+        status: '审批中', remark: '上半年过程版',
+        fileName: 'IPV预测数据_2026-A-IPV【Draft_0715】.xlsx', fileSize: '273 KB',
+      },
+      {
+        id: 9, version: '2026-B-IPV【Publish_0710】',
+        submitTime: '2026-07-11 10:15:20', submitter: '吴安燕',
+        status: '发布版', remark: '下半年正式发布版',
+        approveTime: '2026-07-11 15:00:00',
+        fileName: 'IPV预测数据_2026-B-IPV【Publish_0710】.xlsx', fileSize: '305 KB',
+        publishTime: '2026-07-12 14:00:00',
+      },
+      {
+        id: 10, version: '2026-A-IPV【Draft_0705】',
+        submitTime: '2026-07-06 15:40:33', submitter: '杨选',
+        status: '已驳回', remark: '上半年过程版',
+        rejectReason: '价格段分布数据缺失，请补充后重新提交',
+        fileName: 'IPV预测数据_2026-A-IPV【Draft_0705】.xlsx', fileSize: '262 KB',
+      },
+    ];
+
+    // 分页状态
+    let currentPage = 1;
+    const pageSize = 10;
+
+    // 状态样式
+    function statusTag(status) {
+      const map = { '审批中': 'orange', '待发布': 'blue', '已驳回': 'red', '发布版': 'green' };
+      return `<span class="tag ${map[status] || 'gray'}">${status}</span>`;
+    }
+
+    // 操作按钮
+    function actionButtons(row) {
+      if (row.status === '审批中') {
+        return `<button class="link" onclick="openApprove(${row.id})">审批</button><button class="link" onclick="openDetail(${row.id})">详情</button>`;
+      }
+      if (row.status === '待发布') {
+        return `<button class="link" onclick="openDetail(${row.id})">详情</button><button class="link primary" onclick="openPublish(${row.id})">发布</button>`;
+      }
+      if (row.status === '已驳回') {
+        return `<button class="link" onclick="openDetail(${row.id})">详情</button><button class="link" onclick="resubmit(${row.id})">重新发起</button><button class="link danger" onclick="openDelete(${row.id})">删除</button>`;
+      }
+      return `<button class="link" onclick="openDetail(${row.id})">详情</button>`;
+    }
+
+    function renderTable() {
+      // 分页切片
+      const total = APPROVAL_DATA.length;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * pageSize;
+      const pageData = APPROVAL_DATA.slice(start, start + pageSize);
+
+      const rows = pageData.map((row, idx) => `
+        <tr data-id="${row.id}">
+          <td class="text-secondary">${start + idx + 1}</td>
+          <td><span class="info-name">${row.version}</span></td>
+          <td class="text-secondary">${row.submitTime}</td>
+          <td>${row.submitter}</td>
+          <td class="text-secondary">${row.approveTime || '-'}</td>
+          <td>${statusTag(row.status)}</td>
+          <td class="operations">${actionButtons(row)}</td>
+        </tr>
+      `).join('');
+
+      const contentHtml = `
+        <div class="page-title">审批中心</div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="filter-bar">
+              <div class="filter-item version-picker-filter">
+                <span class="label">版本号：</span>
+                <div class="version-picker">
+                  <select id="f-year">
+                    <option value="">年份</option>
+                    ${YEARS.map(y => `<option value="${y}">${y}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">-</span>
+                  <select id="f-half">
+                    <option value="">大类</option>
+                    ${HALF.map(h => `<option value="${h.value}">${h.value}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">-IPV【</span>
+                  <select id="f-type">
+                    <option value="">类型</option>
+                    ${UPDATE_TYPES.map(t => `<option value="${t.value}">${t.value}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">_</span>
+                  <select id="f-date">
+                    <option value="">日期</option>
+                    ${MMDD_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">】</span>
+                </div>
+              </div>
+              <div class="filter-item">
+                <span class="label">审批状态：</span>
+                <select id="f-status">
+                  <option value="">全部</option>
+                  <option value="审批中">审批中</option>
+                  <option value="待发布">待发布</option>
+                  <option value="已驳回">已驳回</option>
+                  <option value="发布版">发布版</option>
+                </select>
+              </div>
+              <div class="filter-actions">
+                <button class="primary" onclick="renderTable()">查 询</button>
+                <button onclick="resetFilter()">重 置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="toolbar">
+              <div class="selected-info">共 ${APPROVAL_DATA.length} 条审批记录</div>
+              <div class="toolbar-actions">
+                <button class="primary" onclick="openUpload()">+ 上传数据</button>
+              </div>
+            </div>
+            <div class="toolbar">
+              <div class="toolbar-actions">
+                <span class="status-count"><span class="dot orange"></span>审批中 ${APPROVAL_DATA.filter(r=>r.status==='审批中').length}</span>
+                <span class="status-count"><span class="dot blue"></span>待发布 ${APPROVAL_DATA.filter(r=>r.status==='待发布').length}</span>
+                <span class="status-count"><span class="dot red"></span>已驳回 ${APPROVAL_DATA.filter(r=>r.status==='已驳回').length}</span>
+                <span class="status-count"><span class="dot green"></span>发布版 ${APPROVAL_DATA.filter(r=>r.status==='发布版').length}</span>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>序号</th><th>版本号</th><th>提交时间</th><th>提交人</th><th>审批通过时间</th><th>状态</th><th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+
+            <div class="pagination-bar">
+              <div class="pagination-info">共 ${total} 条</div>
+              <div class="pagination">
+                <button class="page-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                ${Array.from({ length: totalPages }, (_, i) => i + 1).map(p => `
+                  <button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>
+                `).join('')}
+                <button class="page-btn" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <span class="page-jump">跳至</span>
+                <input type="number" class="page-input" id="page-jump-input" min="1" max="${totalPages}" value="${currentPage}" onkeydown="if(event.key==='Enter'){goPage(parseInt(this.value)||1)}" />
+                <span class="page-jump">页</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      initPage({ activeKey: '审批中心', contentHtml });
+    }
+
+    function goPage(p) {
+      const totalPages = Math.max(1, Math.ceil(APPROVAL_DATA.length / pageSize));
+      if (p < 1) p = 1;
+      if (p > totalPages) p = totalPages;
+      currentPage = p;
+      renderTable();
+    }
+
+    function resetFilter() {
+      ['f-year','f-half','f-type','f-date','f-status'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      renderTable();
+    }
+
+    // Excel 附件卡片
+    function fileCard(row) {
+      return `
+        <div class="file-attach">
+          <div class="file-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-info">
+            <div class="file-name">${row.fileName}</div>
+            <div class="file-meta">${row.fileSize} · IPV预测数据明细</div>
+          </div>
+          <button class="btn-ghost" onclick="alert('开始下载：${row.fileName}')">下载</button>
+        </div>
+      `;
+    }
+
+    // 详情弹窗
+    function openDetail(id) {
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      const html = `
+        <div class="modal-mask">
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">审批详情 - ${row.version}</div>
+              <button class="close" data-close>&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-section-title">版本信息</div>
+              <div class="form-grid">
+                <div class="form-item"><span class="form-label">版本号</span><div class="form-value">${row.version}</div></div>
+                <div class="form-item"><span class="form-label">提交人</span><div class="form-value">${row.submitter}</div></div>
+                <div class="form-item"><span class="form-label">提交时间</span><div class="form-value">${row.submitTime}</div></div>
+                <div class="form-item"><span class="form-label">审批通过时间</span><div class="form-value">${row.approveTime || '-'}</div></div>
+                <div class="form-item"><span class="form-label">状态</span><div class="form-value">${statusTag(row.status)}</div></div>
+              </div>
+              ${row.remark ? `<div class="form-grid" style="margin-top:8px;"><div class="form-item full"><span class="form-label">提交说明</span><div class="form-value">${row.remark}</div></div></div>` : ''}
+              ${row.rejectReason ? `<div class="form-grid" style="margin-top:8px;"><div class="form-item full"><span class="form-label">驳回原因</span><div class="form-value" style="color:var(--danger);">${row.rejectReason}</div></div></div>` : ''}
+              ${row.publishTime ? `<div class="form-grid" style="margin-top:8px;"><div class="form-item full"><span class="form-label">发布时间</span><div class="form-value">${row.publishTime}</div></div></div>` : ''}
+
+              <div class="form-section-title" style="margin-top:20px;">数据明细</div>
+              ${fileCard(row)}
+            </div>
+            <div class="modal-footer"><button data-close>关 闭</button></div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    // 审批弹窗
+    function openApprove(id) {
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      const html = `
+        <div class="modal-mask">
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">审批 - ${row.version}</div>
+              <button class="close" data-close>&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-section-title">版本信息</div>
+              <div class="form-grid">
+                <div class="form-item"><span class="form-label">版本号</span><div class="form-value">${row.version}</div></div>
+                <div class="form-item"><span class="form-label">提交人</span><div class="form-value">${row.submitter}</div></div>
+                <div class="form-item"><span class="form-label">提交时间</span><div class="form-value">${row.submitTime}</div></div>
+              </div>
+              ${row.remark ? `<div class="form-grid" style="margin-top:8px;"><div class="form-item full"><span class="form-label">提交说明</span><div class="form-value">${row.remark}</div></div></div>` : ''}
+
+              <div class="form-section-title" style="margin-top:20px;">数据明细</div>
+              ${fileCard(row)}
+
+              <div class="form-section-title" style="margin-top:20px;">审批意见</div>
+              <div class="form-item full">
+                <span class="form-label">审批备注 <span class="req" id="req-mark" style="color:var(--danger);display:none;">*</span></span>
+                <textarea id="approve-remark" rows="3" placeholder="请输入审批备注（驳回时必填）" style="width:100%;box-sizing:border-box;"></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="danger" onclick="doReject(${row.id})">不通过</button>
+              <button class="primary" onclick="doApprove(${row.id})">通 过</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    function doApprove(id) {
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      openConfirm({
+        title: '确认通过审批？',
+        desc: `版本号 ${row.version} 将变为「待发布」状态，可在待发布列表中执行发布操作。`,
+        okText: '确认通过', okType: 'primary',
+        onOk: () => { row.status = '待发布'; row.approveTime = formatDate(new Date()); row.approveRemark = document.getElementById('approve-remark').value; closeModal(); renderTable(); },
+      });
+    }
+
+    function doReject(id) {
+      const remark = document.getElementById('approve-remark').value.trim();
+      if (!remark) {
+        document.getElementById('req-mark').style.display = 'inline';
+        const ta = document.getElementById('approve-remark');
+        ta.style.borderColor = 'var(--danger)'; ta.focus(); return;
+      }
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      openConfirm({
+        title: '确认驳回审批？',
+        desc: `版本号 ${row.version} 将变为「已驳回」状态，提交人可重新发起审批或删除。`,
+        okText: '确认驳回', okType: 'danger',
+        onOk: () => { row.status = '已驳回'; row.rejectReason = remark; closeModal(); renderTable(); },
+      });
+    }
+
+    // 发布弹窗（选项卡指定版本号）
+    function openPublish(id) {
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      const p = parseVersion(row.version) || { year: '2026', half: 'A', type: 'Draft', date: '0907' };
+
+      // 发布逻辑：同 年份+大类 已存在 Publish 发布版 → 新发布用 Update；否则用 Publish
+      const hasPublish = APPROVAL_DATA.some(r => {
+        if (r.status !== '发布版' || r.id === id) return false;
+        const rp = parseVersion(r.version);
+        return rp && rp.year === p.year && rp.half === p.half && rp.type === 'Publish';
+      });
+      const defaultType = hasPublish ? 'Update' : 'Publish';
+      const today = new Date();
+      const defaultDate = String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+
+      const html = `
+        <div class="modal-mask">
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">发布数据</div>
+              <button class="close" data-close>&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-section-title">当前版本</div>
+              <div class="form-grid">
+                <div class="form-item"><span class="form-label">原版本号</span><div class="form-value">${row.version}</div></div>
+                <div class="form-item"><span class="form-label">提交人</span><div class="form-value">${row.submitter}</div></div>
+                <div class="form-item"><span class="form-label">提交时间</span><div class="form-value">${row.submitTime}</div></div>
+                <div class="form-item"><span class="form-label">审批通过时间</span><div class="form-value">${row.approveTime || '-'}</div></div>
+              </div>
+
+              <div class="form-section-title" style="margin-top:20px;">指定发布版本号</div>
+              <div class="form-item full">
+                <span class="form-label">版本号 <span style="color:var(--danger);">*</span></span>
+                <div class="version-picker">
+                  <select id="pub-year">
+                    ${YEARS.map(y => `<option value="${y}" ${y===p.year?'selected':''}>${y}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">-</span>
+                  <select id="pub-half">
+                    ${HALF.map(h => `<option value="${h.value}" ${h.value===p.half?'selected':''}>${h.label}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">-IPV【</span>
+                  <select id="pub-type">
+                    ${UPDATE_TYPES.filter(t => t.value !== 'Draft').map(t => `<option value="${t.value}" ${t.value===defaultType?'selected':''}>${t.label}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">_</span>
+                  <select id="pub-date">
+                    ${MMDD_OPTIONS.map(o => `<option value="${o.value}" ${o.value===defaultDate?'selected':''}>${o.label}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">】</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:6px;">
+                  规则：同 年份+大类 首次发布为 <b>Publish</b>，已有 Publish 版后再次发布为 <b>Update</b>；两者均为发布版数据。
+                  ${hasPublish ? `<span style="color:var(--primary);">（已检测到 ${p.year}-${p.half} 存在 Publish 版，默认使用 Update）</span>` : ''}
+                </div>
+              </div>
+              <div class="form-item full" style="margin-top:12px;">
+                <span class="form-label">发布说明</span>
+                <textarea id="publish-remark" rows="2" placeholder="可选" style="width:100%;box-sizing:border-box;"></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="primary" onclick="doPublish(${row.id})">确认发布</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    function doPublish(id) {
+      const year = document.getElementById('pub-year').value;
+      const half = document.getElementById('pub-half').value;
+      const type = document.getElementById('pub-type').value;
+      const date = document.getElementById('pub-date').value;
+      const version = composeVersion(year, half, type, date);
+
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      openConfirm({
+        title: '确认发布？',
+        desc: `发布后该数据将成为「发布版」，版本号：${version}`,
+        okText: '确认发布', okType: 'primary',
+        onOk: () => {
+          row.version = version;
+          row.status = '发布版';
+          row.publishTime = formatDate(new Date());
+          row.publishRemark = document.getElementById('publish-remark').value;
+          row.fileName = `IPV预测数据_${version}.xlsx`;
+          closeModal();
+          renderTable();
+        },
+      });
+    }
+
+    function resubmit(id) {
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      openConfirm({
+        title: '重新发起审批？',
+        desc: `版本号 ${row.version} 将重新进入「审批中」状态，hiagent 平台将锁定该数据不可编辑。`,
+        okText: '确认发起', okType: 'primary',
+        onOk: () => { row.status = '审批中'; row.submitTime = formatDate(new Date()); delete row.rejectReason; renderTable(); },
+      });
+    }
+
+    function openDelete(id) {
+      const row = APPROVAL_DATA.find(r => r.id === id);
+      if (!row) return;
+      openConfirm({
+        title: '确认删除？',
+        desc: `确定要删除版本号 ${row.version} 的审批记录吗？删除后不可恢复。`,
+        okText: '删除', okType: 'danger',
+        onOk: () => { const idx = APPROVAL_DATA.findIndex(r => r.id === id); APPROVAL_DATA.splice(idx, 1); renderTable(); },
+      });
+    }
+
+    // 上传数据弹窗
+    function openUpload() {
+      const today = new Date();
+      const defaultMMDD = String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+
+      const html = `
+        <div class="modal-mask">
+          <div class="modal">
+            <div class="modal-header">
+              <div class="modal-title">上传数据</div>
+              <button class="close" data-close>&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-section-title">选择版本号</div>
+              <div class="form-item full">
+                <span class="form-label">版本号 <span style="color:var(--danger);">*</span></span>
+                <div class="version-picker">
+                  <select id="up-year">
+                    ${YEARS.map(y => `<option value="${y}" ${y==='2026'?'selected':''}>${y}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">-</span>
+                  <select id="up-half">
+                    ${HALF.map(h => `<option value="${h.value}" ${h.value==='A'?'selected':''}>${h.label}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">-IPV【</span>
+                  <select id="up-type">
+                    <option value="Draft" selected>Draft · 过程版</option>
+                  </select>
+                  <span class="vp-sep">_</span>
+                  <select id="up-date">
+                    ${MMDD_OPTIONS.map(o => `<option value="${o.value}" ${o.value===defaultMMDD?'selected':''}>${o.label}</option>`).join('')}
+                  </select>
+                  <span class="vp-sep">】</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:6px;">上传后默认为「过程版（Draft）」，需经审批通过后方可发布。</div>
+              </div>
+
+              <div class="form-section-title" style="margin-top:20px;">上传文件</div>
+              <div class="form-item full">
+                <span class="form-label">数据文件 <span style="color:var(--danger);">*</span></span>
+                <div class="upload-area" onclick="document.getElementById('up-file').click()">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <div style="margin-top:8px;font-size:13px;color:var(--text-2);">点击或拖拽文件到此处上传</div>
+                  <div style="font-size:11px;color:var(--text-3);margin-top:4px;">支持 .xlsx / .xls / .csv 格式，单个文件不超过 10MB</div>
+                  <input type="file" id="up-file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onFileSelected(this)" />
+                </div>
+                <div id="up-file-info" style="display:none;margin-top:10px;">
+                  <div class="file-attach">
+                    <div class="file-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                    <div class="file-info"><div class="file-name" id="up-file-name"></div><div class="file-meta" id="up-file-size"></div></div>
+                    <button class="btn-ghost" onclick="clearUploadedFile()">移除</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-item full" style="margin-top:12px;">
+                <span class="form-label">备注</span>
+                <textarea id="up-remark" rows="2" placeholder="可选" style="width:100%;box-sizing:border-box;"></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button data-close>取 消</button>
+              <button class="primary" onclick="doUpload()">确认上传</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(html);
+    }
+
+    function onFileSelected(input) {
+      const file = input.files[0];
+      if (!file) return;
+      document.getElementById('up-file-name').textContent = file.name;
+      document.getElementById('up-file-size').textContent = (file.size / 1024).toFixed(0) + ' KB';
+      document.getElementById('up-file-info').style.display = 'block';
+    }
+
+    function clearUploadedFile() {
+      document.getElementById('up-file').value = '';
+      document.getElementById('up-file-info').style.display = 'none';
+    }
+
+    function doUpload() {
+      const year = document.getElementById('up-year').value;
+      const half = document.getElementById('up-half').value;
+      const type = document.getElementById('up-type').value;
+      const date = document.getElementById('up-date').value;
+      const version = composeVersion(year, half, type, date);
+      const fileInput = document.getElementById('up-file');
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('请先选择要上传的数据文件');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const newRow = {
+        id: Date.now(),
+        version: version,
+        submitTime: formatDate(new Date()),
+        submitter: '当前用户',
+        status: '审批中',
+        remark: document.getElementById('up-remark').value,
+        fileName: file.name,
+        fileSize: (file.size / 1024).toFixed(0) + ' KB',
+      };
+      APPROVAL_DATA.unshift(newRow);
+      currentPage = 1;
+      closeModal();
+      renderTable();
+    }
+
+    function onPageReady() {}
+    renderTable();
+  </script>
+</body>
+</html>
