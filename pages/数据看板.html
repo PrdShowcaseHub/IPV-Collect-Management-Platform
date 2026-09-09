@@ -5,30 +5,1804 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>数据看板 - IPV数据管理平台</title>
   <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    /* === 看板工具栏 === */
+    .dash-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .dash-toolbar h3 { font-size:14px; font-weight:600; color:var(--text-1); display:flex; align-items:center; gap:6px; }
+    .dash-toolbar h3::before { content:''; width:3px; height:14px; background:var(--primary); border-radius:2px; }
+    .dash-actions { display:flex; gap:8px; }
+    .btn-add-chart { font-size:12px; color:#fff; background:var(--primary); border:none; border-radius:7px; padding:7px 14px; cursor:pointer; font-family:var(--fn); display:inline-flex; align-items:center; gap:5px; transition:all .15s; height:32px; }
+    .btn-add-chart:hover { background:var(--primary-dark); }
+    .btn-view-toggle { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; color:var(--text-2); background:#fff; border:1px solid var(--border); border-radius:7px; cursor:pointer; transition:all .15s; }
+    .btn-view-toggle:hover, .btn-view-toggle.active { color:var(--primary); border-color:var(--primary); background:var(--primary-lighter); }
+    .btn-view-toggle svg { width:22px; height:22px; display:block; flex-shrink:0; }
+
+    /* === 看板标签页 === */
+    .dash-tabsbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 14px; margin-bottom:16px; }
+    .dash-tabs { display:flex; align-items:center; gap:2px; padding:3px; background:var(--primary-lighter); border-radius:8px; }
+    .dash-tab { padding:7px 16px; font-size:13px; font-weight:600; color:var(--text-2); background:none; border:none; border-radius:6px; cursor:pointer; font-family:var(--fn); transition:all .15s; }
+    .dash-tab:hover { color:var(--primary); }
+    .dash-tab.active { color:var(--primary); background:#fff; box-shadow:var(--shadow-sm); }
+    .dash-tab-panel { display:block; }
+    .dash-tab-panel[hidden] { display:none !important; }
+
+    /* === 固定图表网格 === */
+    .fixed-grid { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:16px; }
+    .fixed-grid.is-two-column { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .fixed-grid .chart-card { min-width:0; }
+    @media (max-width:900px) {
+      .fixed-grid.is-two-column { grid-template-columns:1fr; }
+    }
+    .chart-card { background:#fff; border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--shadow-sm); }
+    .chart-card-head { display:flex; align-items:center; gap:8px; padding:11px 16px; border-bottom:1px solid var(--border-soft); background:var(--grad-head); }
+    .chart-card-title { font-size:13px; font-weight:600; color:var(--text-1); display:flex; align-items:center; gap:7px; flex-shrink:0; }
+    .chart-badge { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:20px; padding:0 5px; border-radius:5px; font-size:10px; font-weight:700; background:var(--primary-soft); color:var(--primary); }
+    .chart-badge.bc2 { background:var(--brand-soft); color:var(--brand-dark); }
+    .chart-card-filters { display:flex; gap:5px; flex-wrap:wrap; margin-left:auto; }
+    .chart-filter { height:26px; font-size:11px; border:1px solid var(--border); border-radius:5px; padding:0 6px 0 8px; background:#fff; color:var(--text-2); font-family:var(--fn); cursor:pointer; outline:none; }
+    .chart-filter:focus { border-color:var(--primary); }
+
+    /* === 下拉复选框（卡片筛选：年份多选） === */
+    .chart-filter-multi { position:relative; display:inline-flex; }
+    .chart-filter-multi .chart-filter-trigger { display:inline-flex; align-items:center; gap:5px; height:26px; max-width:230px; font-size:11px; border:1px solid var(--border); border-radius:5px; padding:0 7px 0 8px; background:#fff; color:var(--text-2); font-family:var(--fn); cursor:pointer; outline:none; transition:all .15s; }
+    .chart-filter-multi .chart-filter-trigger .cf-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .chart-filter-multi .chart-filter-trigger:hover { border-color:var(--primary); color:var(--primary); }
+    .chart-filter-multi.open .chart-filter-trigger { border-color:var(--primary); color:var(--primary); box-shadow:0 0 0 3px rgba(var(--primary-rgb), .1); }
+    .chart-filter-multi .cf-caret { flex-shrink:0; width:0; height:0; margin-left:2px; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--text-placeholder); transition:transform .15s; }
+    .chart-filter-multi.open .chart-filter-trigger .cf-caret { transform:rotate(180deg); border-top-color:var(--primary); }
+    .chart-filter-pop { position:absolute; top:calc(100% + 5px); right:0; z-index:60; display:none; min-width:190px; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-md); padding:6px; }
+    .chart-filter-multi.open .chart-filter-pop { display:block; }
+    .chart-filter-pop-head { display:flex; align-items:center; justify-content:space-between; padding:3px 5px 7px; border-bottom:1px solid var(--border-soft); margin-bottom:3px; }
+    .chart-filter-pop-head .cf-pop-title { font-size:11px; font-weight:600; color:var(--text-1); }
+    .cf-pop-link { border:none; background:none; padding:0; font-size:10.5px; color:var(--primary); cursor:pointer; font-family:var(--fn); line-height:1.4; }
+    .cf-pop-link:hover { text-decoration:underline; }
+    .chart-filter-pop-body { max-height:198px; overflow-y:auto; }
+    .chart-filter-opt { display:flex; align-items:center; gap:7px; padding:5px 6px; border-radius:5px; cursor:pointer; font-size:11px; color:var(--text-2); user-select:none; transition:background .1s; }
+    .chart-filter-opt:hover { background:var(--primary-lighter); }
+    .chart-filter-opt input[type=checkbox] { margin:0; width:13px; height:13px; accent-color:var(--primary); cursor:pointer; flex-shrink:0; }
+    .chart-filter-opt.checked { color:var(--primary); font-weight:600; }
+    .chart-filter-opt.disabled { opacity:.55; cursor:not-allowed; }
+    .chart-filter-opt.disabled:hover { background:transparent; }
+    .chart-empty-hint { display:flex; align-items:center; justify-content:center; height:268px; min-width:480px; font-size:12px; color:var(--text-3); }
+    .chart-card-main { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:18px; padding:14px 20px 16px; }
+    .chart-card-body { flex:0 1 auto; min-width:0; max-width:100%; display:flex; align-items:center; justify-content:center; overflow:visible; }
+    .chart-card-body .combo-viz { width:auto; height:268px; max-width:100%; }
+    .chart-card-foot { flex:0 0 auto; max-width:190px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:10px; padding:2px 0 2px 18px; font-size:11px; color:var(--text-3); border-left:1px solid var(--border-soft); }
+    .chart-card-foot .legend-item { white-space:nowrap; gap:6px; line-height:1; }
+
+    /* === 自定义图表行布局：图表主体 + 右侧色块说明 === */
+    .cc-chart-row { flex:1; min-width:0; width:100%; display:flex; align-items:center; justify-content:center; gap:18px; }
+    .cc-chart-viz { flex:0 1 auto; min-width:0; max-width:100%; display:flex; align-items:center; justify-content:center; overflow:visible; }
+    .cc-chart-foot { flex:0 0 auto; max-width:190px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:10px; padding:2px 0 2px 18px; font-size:11px; color:var(--text-3); border-left:1px solid var(--border-soft); }
+    .cc-chart-foot .legend-item { white-space:nowrap; gap:6px; line-height:1; }
+    .cc-chart-row svg { max-width:100%; max-height:100%; }
+    .cc-chart-viz .combo-viz, .cc-chart-viz .line-viz { width:auto; height:264px; max-width:100%; max-height:100%; }
+    .cc-chart-viz .pie-viz-svg { width:auto; height:232px; max-width:100%; max-height:100%; display:block; }
+    .cc-chart-foot .pie-legend-item { gap:6px; line-height:1.4; width:100%; }
+    .cc-chart-foot .pie-legend-item .pie-legend-val { margin-left:auto; }
+    .custom-chart-area .cc-chart-row { width:100%; height:100%; }
+    .custom-chart-area .cc-chart-viz { height:100%; }
+    .custom-chart-area .cc-chart-viz .pie-viz-svg { height:auto; max-height:100%; max-width:100%; }
+    .custom-chart-area .cc-chart-viz .combo-viz, .custom-chart-area .cc-chart-viz .line-viz { height:100%; max-height:100%; width:auto; }
+    .cc-preview-area .cc-chart-canvas { display:flex; flex-direction:column; }
+    .cc-preview-area .cc-chart-canvas .cc-chart-row { flex:1 0 auto; width:100%; }
+
+    /* === 图表公共样式 === */
+    .combo-viz { width:100%; height:280px; display:block; }
+    .custom-chart-area .combo-viz { height:100%; }
+    .combo-viz text { font-family:var(--fn); }
+    .combo-viz .grid-line { stroke:var(--border-soft); stroke-width:1; }
+    .combo-viz .axis-label { font-size:10px; fill:var(--text-3); }
+    .combo-viz .bar-label { font-size:9.5px; font-weight:600; fill:var(--text-2); }
+    .combo-viz .line-label { font-size:9.5px; font-weight:600; }
+    .combo-viz .seg-label { font-size:9.5px; font-weight:600; }
+    .combo-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 14px; font-size:11px; color:var(--text-3); }
+    .legend-item { display:flex; align-items:center; gap:4px; }
+    .legend-dot { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+
+    /* === 柱状图 CSS === */
+    .bar-viz { display:flex; align-items:flex-end; gap:12px; width:100%; height:200px; padding:0 4px; }
+    .bar-col-viz { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
+    .bar-val { font-size:10px; font-weight:600; color:var(--text-2); font-family:var(--fn); }
+    .bar-fill { width:60%; border-radius:4px 4px 0 0; background:var(--primary); transition:height .3s; min-height:3px; }
+    .bar-fill.brand { background:var(--brand); }
+    .bar-lbl { font-size:10px; color:var(--text-3); }
+
+    /* === 堆积柱状图 CSS === */
+    .stacked-viz { display:flex; flex-direction:column; gap:8px; width:100%; }
+    .stacked-legend { display:flex; gap:12px; font-size:10px; color:var(--text-3); }
+    .stacked-bars { display:flex; align-items:flex-end; gap:12px; height:180px; }
+    .stacked-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
+    .stacked-col-bars { width:60%; height:100%; display:flex; flex-direction:column-reverse; border-radius:4px; overflow:hidden; }
+    .stacked-seg { transition:height .3s; }
+    .stacked-lbl { font-size:10px; color:var(--text-3); }
+
+    /* === 折线图 SVG === */
+    .line-viz { width:100%; height:280px; display:block; }
+    .line-viz .grid-line { stroke:var(--border-soft); stroke-width:1; }
+    .line-viz .axis-label { font-size:10px; fill:var(--text-3); font-family:var(--fn); }
+    .line-viz .data-line { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .line-viz .data-point { stroke-width:2; }
+
+    /* === 饼图 SVG === */
+    .pie-legend-item { display:flex; align-items:center; gap:6px; color:var(--text-2); }
+    .pie-legend-val { font-weight:600; color:var(--text-1); font-family:var(--fn); }
+
+    /* === 表格 === */
+    .table-viz { width:100%; font-size:11px; }
+    .table-viz th { background:var(--th-bg); color:var(--text-3); font-weight:600; padding:6px 8px; text-align:left; font-size:10px; }
+    .table-viz td { padding:6px 8px; color:var(--text-2); border-bottom:1px solid var(--border-soft); }
+    .table-viz tr:last-child td { border-bottom:none; }
+
+    /* === 自定义图表区 === */
+    .custom-section { margin-top:4px; }
+    .custom-empty { background:#fff; border:1px dashed var(--border); border-radius:10px; padding:40px 20px; text-align:center; }
+    .custom-empty-ico { width:48px; height:48px; border-radius:12px; background:var(--primary-lighter); color:var(--primary); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
+    .custom-empty p { font-size:12px; color:var(--text-3); }
+    .custom-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:14px; }
+    .custom-card { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+    .custom-card-head { padding:10px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border-soft); flex-shrink:0; }
+    .custom-card-title { font-size:13px; font-weight:600; color:var(--text-1); display:flex; align-items:center; gap:6px; }
+    .custom-card-type { font-size:10px; padding:1px 6px; border-radius:4px; background:var(--primary-soft); color:var(--primary); }
+    .custom-card-actions { display:flex; gap:4px; }
+    .custom-card-actions button { border:none; background:none; cursor:pointer; color:var(--text-3); padding:4px; border-radius:4px; display:flex; align-items:center; }
+    .custom-card-actions button:hover { background:var(--bg-hover); color:var(--primary); }
+    .custom-card-body { height:300px; background:var(--canvas); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .custom-chart-area { background:#fff; border-radius:8px; width:calc(100% - 20px); height:calc(100% - 20px); display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:var(--shadow-sm); }
+    .custom-chart-area > * { width:100%; max-height:100%; }
+    .custom-chart-area svg { max-width:100%; max-height:100%; }
+    .custom-chart-area .table-viz { font-size:10px; max-height:100%; overflow:auto; }
+    .custom-chart-area .line-viz { width:100%; height:100%; }
+    .custom-card-foot { padding:6px 14px 10px; font-size:10px; color:var(--text-3); display:flex; justify-content:space-between; flex-shrink:0; }
+
+    /* === 全屏图表编辑器 === */
+    .cc-editor { position:fixed; inset:0; z-index:6500; background:#fff; display:none; flex-direction:column; }
+    .cc-editor.active { display:flex; }
+    .cc-editor-top { height:48px; padding:0 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); background:var(--grad-head); flex-shrink:0; }
+    .cc-editor-back { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; color:var(--text-2); border:none; background:none; font-family:var(--fn); }
+    .cc-editor-back:hover { color:var(--primary); }
+    .cc-editor-title { font-size:14px; font-weight:700; color:var(--text-1); display:flex; align-items:center; gap:8px; }
+    .cc-editor-title::before { content:''; width:3px; height:16px; background:var(--primary); border-radius:2px; }
+    .cc-editor-name-input { height:30px; border:1px solid var(--border); border-radius:6px; padding:0 10px; font-size:13px; color:var(--text-1); font-family:var(--fn); background:#fff; outline:none; width:200px; }
+    .cc-editor-name-input:focus { border-color:var(--primary); }
+    .cc-editor-meta { font-size:11px; color:var(--text-3); display:flex; align-items:center; gap:8px; }
+    .cc-editor-meta .cc-version-chip { background:var(--primary-soft); color:var(--primary); padding:2px 8px; border-radius:5px; font-size:11px; }
+    .cc-editor-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+    .cc-editor-btn-save { font-size:12px; color:#fff; background:var(--primary); border:none; border-radius:7px; padding:7px 16px; cursor:pointer; font-family:var(--fn); display:inline-flex; align-items:center; gap:5px; transition:all .15s; height:32px; }
+    .cc-editor-btn-save:hover { background:var(--primary-dark); }
+
+    .cc-editor-body { flex:1; display:grid; grid-template-columns:270px 400px minmax(0,1fr); overflow:hidden; }
+
+    /* 左面板 — 字段列表 */
+    .cc-left { min-width:0; border-right:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; }
+    .cc-left-section { padding:12px 14px; border-bottom:1px solid var(--border-soft); }
+    .cc-left-title { font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+    .cc-field-search { width:100%; height:28px; border:1px solid var(--border); border-radius:5px; padding:0 8px; font-size:11px; color:var(--text-2); background:#fff; outline:none; margin-bottom:8px; }
+    .cc-field-search:focus { border-color:var(--primary); }
+    .cc-field-group-label { font-size:10px; font-weight:600; color:var(--text-3); margin:8px 0 4px; }
+    .cc-field-item { padding:5px 8px; border-radius:5px; cursor:grab; display:flex; gap:7px; align-items:center; transition:background .12s; }
+    .cc-field-item:hover { background:var(--primary-lighter); }
+    .cc-field-item.dragging { opacity:.4; }
+    .cc-field-item.in-use { opacity:.5; }
+    .cc-field-item.in-use .cc-field-name::after { content:' ✓'; color:var(--primary); }
+    .cc-field-tag { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; font-size:9px; font-weight:700; flex-shrink:0; }
+    .cc-field-tag.dim { background:var(--primary-soft); color:var(--primary); }
+    .cc-field-tag.metric { background:var(--brand-soft); color:var(--brand-dark); }
+    .cc-field-name { min-width:0; font-size:11.5px; color:var(--text-2); overflow-wrap:anywhere; }
+
+    /* 图表类型选择 */
+    .cc-type-grid { display:flex; flex-direction:column; gap:10px; padding:10px 14px; }
+    .cc-type-group { display:flex; flex-direction:column; gap:5px; }
+    .cc-type-group-title { font-size:10px; font-weight:700; color:var(--text-3); }
+    .cc-type-group-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+    .cc-type-card { border:1.5px solid var(--border); border-radius:7px; padding:8px 2px 6px; cursor:pointer; text-align:center; transition:all .15s; background:#fff; }
+    .cc-type-card:hover { border-color:var(--primary); background:var(--primary-lighter); }
+    .cc-type-card.active { border-color:var(--primary); background:var(--primary-soft); }
+    .cc-type-card svg { color:var(--text-3); margin-bottom:2px; }
+    .cc-type-card.active svg { color:var(--primary); }
+    .cc-type-card span { display:block; font-size:10px; color:var(--text-2); }
+    .cc-type-card.active span { color:var(--primary); font-weight:600; }
+
+    /* 中面板 — 字段配置 */
+    .cc-middle { border-right:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; }
+    .cc-middle > .cc-panel:first-child { flex:none; }
+    .cc-panel { border-bottom:1px solid var(--border-soft); }
+    .cc-panel-head { padding:10px 14px 6px; font-size:12px; font-weight:600; color:var(--text-1); display:flex; align-items:center; gap:6px; }
+    .cc-panel-head::before { content:''; width:3px; height:13px; background:var(--primary); border-radius:2px; }
+    .cc-panel-body { padding:8px 14px 14px; }
+
+    /* 拖放槽 */
+    .cc-slot-row { display:grid; grid-template-columns:64px 1fr; border:1px solid var(--border); border-radius:7px; min-height:44px; margin-bottom:8px; transition:all .15s; }
+    .cc-slot-row.dragover { border-color:var(--primary) !important; background:var(--primary-soft) !important; border-style:solid !important; }
+    .cc-slot-row.invalid-drop { border-color:#EF4444 !important; background:#FEF2F2 !important; }
+    .cc-slot-row.empty { border-style:dashed; }
+    .cc-slot-label { display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:var(--text-3); border-right:1px solid var(--border-soft); }
+    .cc-slot-drop { display:flex; flex-wrap:wrap; gap:5px; padding:6px 8px; align-items:center; min-height:44px; }
+    .cc-slot-empty-hint { font-size:10px; color:var(--text-placeholder); }
+    .cc-field-chip { padding:3px 5px 3px 7px; background:var(--primary-lighter); border:1px solid var(--border); border-radius:5px; font-size:11.5px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all .12s; }
+    .cc-field-chip:hover { border-color:var(--primary); background:var(--primary-soft); }
+    .cc-field-chip .cc-chip-agg { font-size:9px; color:var(--text-3); background:#fff; padding:1px 4px; border-radius:3px; }
+    .cc-field-chip .cc-chip-close { cursor:pointer; color:var(--text-3); font-size:14px; line-height:1; padding:0 2px; border:none; background:none; }
+    .cc-field-chip .cc-chip-close:hover { color:#EF4444; }
+
+    /* 版本选择 */
+    .cc-version-group { margin-bottom:8px; }
+    .cc-version-label { font-size:11px; color:var(--text-3); margin-bottom:4px; }
+    .cc-version-select { width:100%; height:30px; border:1px solid var(--border); border-radius:5px; padding:0 8px; font-size:12px; color:var(--text-1); background:#fff; cursor:pointer; outline:none; }
+    .cc-version-select:focus { border-color:var(--primary); }
+
+    /* 筛选条件 — 中栏竖排面板 */
+    .cc-filter-panel { flex:1; min-height:0; display:flex; flex-direction:column; border-bottom:none; overflow:hidden; }
+    .cc-filter-head { margin:2px 12px 8px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+    .cc-filter-head-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .cc-filter-count { font-size:10.5px; color:var(--primary); background:var(--primary-soft); border-radius:4px; padding:1px 7px; font-weight:600; }
+    .cc-filter-hint { font-size:10px; color:var(--text-3); line-height:1.5; }
+    .cc-combo-row { width:100%; }
+    .cc-combo-select { width:100%; height:26px; border:1px solid var(--border); border-radius:5px; padding:0 6px; font-size:11px; color:var(--text-2); background:#fff; cursor:pointer; outline:none; }
+    .cc-combo-select:focus { border-color:var(--primary); }
+    .cc-filter-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .cc-btn-clear { margin-left:auto; }
+    .cc-btn { height:26px; border:1px solid var(--border); border-radius:5px; padding:0 9px; font-size:11px; cursor:pointer; background:#fff; color:var(--text-2); font-family:var(--fn); display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+    .cc-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .cc-btn.primary { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .cc-btn.primary:hover { background:var(--primary-dark); border-color:var(--primary-dark); }
+    .cc-btn.danger { color:#EF4444; }
+    .cc-btn.danger:hover { border-color:#EF4444; color:#EF4444; background:#FEF2F2; }
+    .cc-btn:disabled { opacity:.45; cursor:not-allowed; }
+    .cc-combo-edit { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; padding-top:6px; border-top:1px dashed var(--border-soft); }
+    .cc-combo-name-input { width:140px; height:26px; border:1px solid var(--border); border-radius:5px; padding:0 8px; font-size:11px; color:var(--text-1); background:#fff; outline:none; }
+    .cc-combo-name-input:focus { border-color:var(--primary); }
+    .cc-filter-list { flex:1; min-height:0; overflow-y:auto; padding:2px 12px 14px; display:flex; flex-direction:column; gap:8px; }
+    .cc-filter-dim-row { border:1px solid var(--border-soft); background:var(--canvas); border-radius:7px; padding:7px 9px; }
+    .cc-filter-dim-label { font-size:11px; font-weight:600; color:var(--text-2); display:flex; align-items:center; gap:5px; margin-bottom:6px; }
+    .cc-filter-dim-label .cc-field-tag { width:15px; height:15px; font-size:8.5px; }
+    .cc-filter-dim-vals { display:flex; flex-wrap:wrap; gap:5px; }
+    .cc-val-chip { padding:2px 10px; border:1px solid var(--border); border-radius:11px; font-size:11px; color:var(--text-2); background:#fff; cursor:pointer; user-select:none; line-height:1.6; transition:all .12s; white-space:nowrap; }
+    .cc-val-chip:hover { border-color:var(--primary); color:var(--primary); }
+    .cc-val-chip.on { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .cc-val-chip.all { color:var(--text-3); font-weight:600; border-style:dashed; }
+    .cc-val-chip.all.on { color:#fff; font-weight:600; }
+
+    /* 右面板 — 预览 */
+    .cc-right { min-width:0; overflow:hidden; display:flex; flex-direction:column; background:var(--canvas); }
+    .cc-preview-tabs { display:flex; gap:2px; padding:8px 14px 0; border-bottom:1px solid var(--border-soft); flex-shrink:0; }
+    .cc-preview-tab { padding:5px 12px; font-size:11.5px; color:var(--text-3); cursor:pointer; border-radius:6px 6px 0 0; border:1px solid transparent; border-bottom:none; transition:all .15s; }
+    .cc-preview-tab:hover { color:var(--text-1); }
+    .cc-preview-tab.active { background:#fff; border-color:var(--border-soft); font-weight:600; color:var(--primary); }
+    .cc-preview-area { flex:1; overflow:auto; padding:16px; }
+    .cc-chart-stage { min-height:100%; box-sizing:border-box; display:flex; align-items:stretch; background:#fff; border:1px solid var(--border); border-radius:8px; padding:20px; box-shadow:var(--shadow-sm); }
+    .cc-chart-canvas { flex:1; min-width:0; min-height:360px; }
+    .cc-chart-context { display:flex; flex-wrap:wrap; gap:8px; padding:0 0 16px; border-bottom:1px solid var(--border-soft); margin-bottom:14px; }
+    .cc-chart-context-item { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; color:var(--text-2); font-size:11px; background:var(--canvas); }
+    .cc-chart-context-item strong { color:var(--text-1); font-weight:600; }
+    .cc-chart-context-meta { margin-left:auto; align-self:center; color:var(--text-3); font-size:11px; }
+    .cc-series-viz { display:flex; flex-direction:column; min-height:320px; }
+    .cc-series-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-bottom:12px; font-size:11px; color:var(--text-2); }
+    .cc-series-bars { display:flex; align-items:flex-end; gap:14px; flex:1; min-height:260px; padding:12px 12px 0; border-left:1px solid var(--border); border-bottom:1px solid var(--border); }
+    .cc-series-group { display:flex; flex:1; min-width:46px; height:100%; align-items:flex-end; justify-content:center; gap:4px; position:relative; }
+    .cc-series-group-label { position:absolute; bottom:-23px; left:50%; transform:translateX(-50%); width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; font-size:10px; color:var(--text-3); }
+    .cc-series-bar { min-width:7px; max-width:22px; flex:1; position:relative; border-radius:3px 3px 0 0; }
+    .cc-series-bar:hover { opacity:.8; }
+    .cc-series-value { position:absolute; left:50%; bottom:calc(100% + 3px); transform:translateX(-50%); color:var(--text-2); font-size:9px; white-space:nowrap; }
+    .cc-preview-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-3); font-size:13px; }
+    .cc-preview-empty svg { margin-bottom:10px; }
+    .cc-raw-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid var(--border-soft); border-radius:8px; overflow:hidden; }
+    .cc-raw-table th { background:var(--th-bg); color:var(--text-3); font-weight:600; padding:7px 10px; text-align:left; font-size:11px; border-bottom:1px solid var(--border-soft); position:sticky; top:0; }
+    .cc-raw-table td { padding:6px 10px; border-bottom:1px solid var(--border-soft); color:var(--text-2); }
+    .cc-raw-table tr:last-child td { border-bottom:none; }
+    .cc-raw-table .num { font-family:var(--fn); text-align:right; }
+  </style>
 </head>
 <body>
   <script src="../assets/js/common.js"></script>
   <script>
+    /* ===== Mock 数据 ===== */
+    const REGIONS = ['中国', '欧洲', '中南美', '东南亚', '中东非', '欧亚'];
+    const POWERTRAINS = [
+      { name: 'ICE', color: '#6B7280' },
+      { name: 'HEV', color: '#2E5F95' },
+      { name: 'XEV', color: '#E68620' },
+      { name: 'EV',  color: '#10B981' }
+    ];
+
+    // 1.1 规模 — 各目标市场分年份规模数据（万辆）
+    // X轴=版本(年份), Y轴=各目标市场堆积规模, 折线=同比增速
+    const SCALE_VERSIONS = ['2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030', '2031', '2032', '2033', '2034', '2035'];
+    const SCALE_REGIONS = [
+      { name: '中国',   color: '#2E5F95', values: [2050, 2080, 2200, 2280, 2340, 2380, 2400, 2420, 2440, 2460, 2480, 2500, 2510, 2520, 2530, 2540, 2550] },
+      { name: '欧洲',   color: '#5AA0E6', values: [1500, 1280, 1390, 1420, 1460, 1455, 1450, 1465, 1480, 1500, 1520, 1546, 1555, 1560, 1562, 1558, 1550] },
+      { name: '中南美', color: '#8FC0EF', values: [380, 300, 340, 360, 390, 419, 445, 470, 483, 498, 513, 529, 535, 540, 545, 550, 555] },
+      { name: '东南亚', color: '#BFDCF6', values: [340, 260, 300, 330, 360, 379, 406, 420, 435, 450, 465, 480, 495, 505, 515, 525, 535] },
+      { name: '中东非', color: '#D6E8F5', values: [300, 250, 290, 320, 350, 368, 397, 415, 430, 445, 460, 475, 490, 505, 515, 525, 535] },
+      { name: '欧亚',   color: '#EAF1F8', values: [210, 190, 200, 195, 200, 210, 220, 230, 240, 250, 260, 270, 275, 280, 285, 290, 295] },
+    ];
+    // 同比增速（%）
+    const SCALE_GROWTH = [null, -8.8, 8.3, 3.9, 4.0, 2.2, 2.1, 1.9, 1.6, 1.7, 1.7, 1.8, 1.0, 0.9, 0.7, 0.6, 0.5];
+
+    // 1.2 规模自定义 — 2015-2030年销量预测（万辆）+ 同比增速
+    const SCALE_CUSTOM_YEARS = ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025','2026','2027F','2028F','2029F','2030F'];
+    const SCALE_CUSTOM_SALES = [1850, 1980, 2150, 2280, 2350, 2100, 2280, 2450, 2680, 2750, 2820, 2900, 2980, 3050, 3120, 3200];
+    const SCALE_CUSTOM_GROWTH = [null, 7.0, 8.6, 6.0, 3.1, -10.6, 8.6, 7.5, 9.4, 2.6, 2.5, 2.8, 2.8, 2.4, 2.3, 2.6];
+
+    // 规模数据（万辆）— 旧1.2用
+    const SCALE_DATA = {
+      '全部': [2800, 2200, 850, 1200, 650, 480],
+      'PV':   [2400, 1800, 700, 1000, 550, 400],
+      'LCV':  [400, 400, 150, 200, 100, 80],
+    };
+
+    // 统一图表配色 — 启源蓝渐变 + 品牌橙
+    const C_ICE = '#2E5F95';   // 深蓝
+    const C_HEV = '#5AA0E6';   // 中蓝
+    const C_XEV = '#8FC0EF';   // 浅蓝
+    const C_EV  = '#BFDCF6';   // 最浅蓝
+    const C_LINE = '#E68620';  // 品牌橙（折线）
+
+    // 2.2 动力结构 — 各区域动力类型占比（%）
+    const POWER_REGIONS = ['中国', '欧洲', '中南美', '东南亚', '中东非', '欧亚'];
+    const POWER_TYPES = [
+      { name: 'ICE', color: C_ICE, values: [0.45, 0.40, 0.50, 0.55, 0.60, 0.50] },
+      { name: 'HEV', color: C_HEV, values: [0.30, 0.30, 0.25, 0.20, 0.20, 0.25] },
+      { name: 'XEV', color: C_XEV, values: [0.15, 0.20, 0.15, 0.15, 0.10, 0.15] },
+      { name: 'EV',  color: C_EV,  values: [0.10, 0.10, 0.10, 0.10, 0.10, 0.10] },
+    ];
+
+    // 2.2 动力结构自定义 — 2020-2030F 各动力占比 + NEV渗透率折线
+    const POWER_CUSTOM_YEARS = ['2020','2021','2022','2023','2024','2025','2026','2027F','2028F','2029F','2030F'];
+    const POWER_CUSTOM_TYPES = [
+      { name: 'ICE', color: C_ICE, values: [0.919, 0.828, 0.692, 0.615, 0.489, 0.419, 0.353, 0.277, 0.232, 0.171, 0.124] },
+      { name: 'HEV', color: C_HEV, values: [0.031, 0.056, 0.112, 0.112, 0.196, 0.205, 0.193, 0.199, 0.196, 0.191, 0.183] },
+      { name: 'XEV', color: C_XEV, values: [0.011, 0.036, 0.064, 0.064, 0.064, 0.038, 0.053, 0.069, 0.104, 0.144, 0.175] },
+      { name: 'EV',  color: C_EV,  values: [0.039, 0.079, 0.132, 0.200, 0.251, 0.338, 0.400, 0.465, 0.468, 0.494, 0.518] },
+    ];
+    const NEV_PENETRATION = [5.3, 14.5, 25.6, 34.8, 41.9, 54.3, 59.4, 65.4, 66.7, 68.6, 70.1];
+
+    /* ===== 固定图表筛选选项 ===== */
+    const FILTER_OPTS = {
+      'IPV版本': ['当前最新版本', '2026-A-IPV【Publish_0815】', '2026-B-IPV【Publish_0720】'],
+      '车身大类': ['PV', 'LCV'],
+      '目标市场': ['是', '否'],
+      '区域': ['全球', '中国', '欧洲', '中南美', '东南亚', '中东非', '欧亚'],
+      '国家': ['日本', '韩国', '德国', '法国', '美国', '巴西', '泰国', '阿联酋'],
+      '法规聚类': ['高标', '右低', '左低'],
+      '重点国家': ['是', '否'],
+      '年份': ['2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030', '2031', '2032', '2033', '2034', '2035'],
+    };
+
+    /* ===== 自定义图表字段定义 ===== */
+    const DIMENSIONS = [
+      { key: '区域',   options: ['中国', '欧洲', '中南美', '东南亚', '中东非', '欧亚'] },
+      { key: '国家', label: '国家/地区', options: ['日本', '韩国', '德国', '法国', '美国', '巴西', '泰国', '阿联酋'] },
+      { key: '车身大类', options: ['PV', 'LCV'] },
+      { key: '品类',   options: ['轿车', 'SUV', 'MPV', '皮卡'] },
+      { key: '品种',   options: ['紧凑型', '中型', '中大型', '豪华型'] },
+      { key: '车格', label: '车格细分', options: ['A级', 'B级', 'C级', 'D级'] },
+      { key: '动力', label: '动力类型', options: ['ICE', 'HEV', 'XEV', 'EV'] },
+      { key: '价格段', options: ['10万以下', '10-20万', '20-30万', '30-50万', '50万以上'] },
+      { key: '年份',   options: ['2024', '2025', '2026'] },
+      { key: '法规聚类', options: ['高标', '右低', '左低'] },
+      { key: '目标市场', options: ['是', '否'] },
+      { key: '重点国家', options: ['是', '否'] },
+    ];
+    const METRICS = ['规模(万辆)', '增速(%)', '占比(%)', '车型数量'];
+
+    /* ===== 发布版本列表 ===== */
+    const VERSIONS = {
+      '发布版': ['2026-A-IPV【Publish_0815】', '2026-B-IPV【Publish_0720】'],
+      '更新版': ['2026-A-IPV【Update_0810】', '2026-B-IPV【Update_0705】'],
+    };
+
+    /* ===== 自定义图表状态 ===== */
+    let customCharts = [];
+    let editingChartId = null;
+
+    /* ===== 渲染函数 ===== */
+    function renderBarChart(container, labels, values, color) {
+      var n = labels.length;
+      var w = Math.max(500, n * 60), h = 280, pad = { t:20, r:20, b:30, l:45 };
+      var cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      var stepX = cw / n, barW = stepX * 0.5;
+      var max = Math.max.apply(null, values.concat([1]));
+      var barColor = color === 'brand' ? '#E68620' : '#2E5F95';
+      var ticks = [0, max*0.25, max*0.5, max*0.75, max];
+      var grid = ticks.map(function(v) {
+        var y = pad.t + ch - (v / max) * ch;
+        return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w-pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />';
+      }).join('');
+      var axisLines = '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t+ch) + '" stroke="var(--border)" stroke-width="1" />' +
+        '<line x1="' + pad.l + '" y1="' + (pad.t+ch) + '" x2="' + (w-pad.r) + '" y2="' + (pad.t+ch) + '" stroke="var(--border)" stroke-width="1" />';
+      var yLeft = ticks.map(function(v) {
+        var y = pad.t + ch - (v / max) * ch;
+        return '<text class="axis-label" x="' + (pad.l-4) + '" y="' + (y+3) + '" text-anchor="end">' + Math.round(v) + '</text>';
+      }).join('');
+      var bars = labels.map(function(label, i) {
+        var x = pad.l + i * stepX + (stepX - barW) / 2;
+        var barH = (values[i] / max) * ch;
+        var y = pad.t + ch - barH;
+        return '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH + '" fill="' + barColor + '" rx="2" />' +
+               '<text class="bar-label" x="' + (x + barW/2) + '" y="' + (y - 4) + '" text-anchor="middle">' + values[i] + '</text>';
+      }).join('');
+      var xLabels2 = labels.map(function(l, i) {
+        return '<text class="axis-label" x="' + (pad.l + i*stepX + stepX/2) + '" y="' + (h-8) + '" text-anchor="middle">' + l + '</text>';
+      }).join('');
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + bars + yLeft + xLabels2 + '</svg>';
+      var legendItems = '<span class="legend-item"><span class="legend-dot" style="background:' + barColor + '"></span>数值</span>';
+      var foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legendItems;
+    }
+
+    function renderGroupedBarChart(container, labels, series) {
+      var n = labels.length, nSeries = series.length;
+      var w = Math.max(500, n * (nSeries * 14 + 30)), h = 280, pad = { t:20, r:20, b:30, l:45 };
+      var cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      var stepX = cw / n, groupW = stepX * 0.7, barW = groupW / nSeries;
+      var colors = ['#2E5F95', '#5AA0E6', '#8FC0EF', '#BFDCF6', '#E68620', '#D97706'];
+      var max = Math.max.apply(null, series.flatMap(function(s) { return s.values; }).concat([1]));
+      var ticks = [0, max*0.25, max*0.5, max*0.75, max];
+      var legend = series.map(function(s, i) {
+        return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>';
+      }).reverse().join('');
+      var grid = ticks.map(function(v) {
+        var y = pad.t + ch - (v / max) * ch;
+        return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w-pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />';
+      }).join('');
+      var axisLines = '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t+ch) + '" stroke="var(--border)" stroke-width="1" />' +
+        '<line x1="' + pad.l + '" y1="' + (pad.t+ch) + '" x2="' + (w-pad.r) + '" y2="' + (pad.t+ch) + '" stroke="var(--border)" stroke-width="1" />';
+      var yLeft = ticks.map(function(v) {
+        var y = pad.t + ch - (v / max) * ch;
+        return '<text class="axis-label" x="' + (pad.l-4) + '" y="' + (y+3) + '" text-anchor="end">' + Math.round(v) + '</text>';
+      }).join('');
+      var bars = labels.map(function(label, labelIndex) {
+        var groupX = pad.l + labelIndex * stepX + (stepX - groupW) / 2;
+        return series.map(function(s, seriesIndex) {
+          var value = s.values[labelIndex];
+          var x = groupX + seriesIndex * barW;
+          var barH = (value / max) * ch;
+          var y = pad.t + ch - barH;
+          return '<rect x="' + x + '" y="' + y + '" width="' + (barW - 1) + '" height="' + barH + '" fill="' + colors[seriesIndex % colors.length] + '" rx="1.5" />' +
+                 '<text class="bar-label" x="' + (x + barW/2) + '" y="' + (y - 4) + '" text-anchor="middle" style="font-size:8px;">' + value + '</text>';
+        }).join('');
+      }).join('');
+      var xLabels2 = labels.map(function(l, i) {
+        return '<text class="axis-label" x="' + (pad.l + i*stepX + stepX/2) + '" y="' + (h-8) + '" text-anchor="middle">' + l + '</text>';
+      }).join('');
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + bars + yLeft + xLabels2 + '</svg>';
+      var foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legend;
+    }
+
+    function renderStackedChart(container, labels, series) {
+      const legend = series.slice().reverse().map(s => `<span class="legend-item"><span class="legend-dot" style="background:${s.color}"></span>${s.name}</span>`).join('');
+      const bars = labels.map((label, i) => {
+        const segs = series.map(s => `<div class="stacked-seg" style="height:${(s.values[i])*100}%;background:${s.color};" title="${s.name}: ${(s.values[i]*100).toFixed(0)}%"></div>`).join('');
+        return `<div class="stacked-col"><div class="stacked-col-bars">${segs}</div><div class="stacked-lbl">${label}</div></div>`;
+      }).join('');
+      container.innerHTML = `
+        <div class="stacked-viz">
+          <div class="stacked-legend">${legend}</div>
+          <div class="stacked-bars">${bars}</div>
+        </div>
+      `;
+    }
+
+    function renderLineChart(container, labels, series, showMarkers) {
+      const n = labels.length;
+      const w = Math.max(500, n * 60), h = 280, pad = { t:20, r:20, b:30, l:45 };
+      const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      const maxVal = Math.max(...series.flatMap(s => s.values), 1);
+      const stepX = cw / (labels.length - 1 || 1);
+      const colors = ['#2E5F95', '#E68620', '#10B981', '#7C3AED'];
+      const gridLines = [0, 0.25, 0.5, 0.75, 1].map(p => {
+        const y = pad.t + ch - p * ch;
+        return `<line class="grid-line" x1="${pad.l}" y1="${y}" x2="${w-pad.r}" y2="${y}" />`;
+      }).join('');
+      const axisLines = `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" /><line x1="${pad.l}" y1="${pad.t+ch}" x2="${w-pad.r}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />`;
+      const xLabels = labels.map((l, i) => `<text class="axis-label" x="${pad.l + i*stepX}" y="${h-8}" text-anchor="middle">${l}</text>`).join('');
+      const yLabels = [0, maxVal/2, maxVal].map((v, i) => {
+        const y = pad.t + ch - (i/2) * ch;
+        return `<text class="axis-label" x="${pad.l-4}" y="${y+3}" text-anchor="end">${v.toFixed(0)}</text>`;
+      }).join('');
+      const lines = series.map((s, si) => {
+        const c = colors[si % colors.length];
+        const pts = s.values.map((v, i) => `${pad.l + i*stepX},${pad.t + ch - (v/maxVal)*ch}`).join(' ');
+        const dots = s.values.map((v, i) => `<circle class="data-point" cx="${pad.l + i*stepX}" cy="${pad.t + ch - (v/maxVal)*ch}" r="3" fill="${c}" stroke="#fff" /><text class="line-label" x="${pad.l + i*stepX}" y="${pad.t + ch - (v/maxVal)*ch - 8}" text-anchor="middle" fill="${c}">${v}</text>`).join('');
+        return `<polyline class="data-line" stroke="${c}" points="${pts}" />${showMarkers ? dots : ''}`;
+      }).join('');
+      container.innerHTML = `<svg class="line-viz" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${gridLines}${axisLines}${xLabels}${yLabels}${lines}</svg>`;
+      const legend = series.map((s, si) => {
+        const c = colors[si % colors.length];
+        return `<span class="legend-item"><span class="legend-dot" style="background:${c}"></span>${s.name}</span>`;
+      }).reverse().join('');
+      const foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legend;
+    }
+
+    /* ===== 折柱图（堆积柱+折线，双Y轴） ===== */
+    function renderComboChart(container, xLabels, barSeries, lineValues, lineLabel, showRightAxis) {
+      const n = xLabels.length;
+      const w = Math.max(600, n * 60), h = 280, pad = { t:20, r:45, b:30, l:50 };
+      const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      const stepX = cw / n;
+      const barW = stepX * 0.5;
+
+      // 柱状图Y轴（左）：规模
+      const totals = xLabels.map((_, i) => barSeries.reduce((s, r) => s + r.values[i], 0));
+      const maxBar = Math.max(...totals, 1);
+      const barTicks = [0, maxBar * 0.25, maxBar * 0.5, maxBar * 0.75, maxBar];
+
+      // 折线Y轴（右）：增速%
+      const validLine = lineValues.filter(v => v !== null && v !== undefined);
+      const hasLine = validLine.length > 0 && showRightAxis !== false;
+      const lineMin = Math.min(...validLine, -8);
+      const lineMax = Math.max(...validLine, 5);
+      const lineRange = lineMax - lineMin || 1;
+
+      // 图例
+      const legendItems = barSeries.slice().reverse().map(r =>
+        `<span class="legend-item"><span class="legend-dot" style="background:${r.color}"></span>${r.name}</span>`
+      ).join('') + (hasLine ? `<span class="legend-item"><span style="width:12px;height:2px;background:${C_LINE};display:inline-block;border-radius:1px;"></span>${lineLabel}</span>` : '');
+
+      // 网格线
+      const grid = barTicks.map(v => {
+        const y = pad.t + ch - (v / maxBar) * ch;
+        return `<line class="grid-line" x1="${pad.l}" y1="${y}" x2="${w-pad.r}" y2="${y}" stroke-dasharray="3,3" />`;
+      }).join('');
+
+      // 左Y轴标签
+      const yLeft = barTicks.map(v => {
+        const y = pad.t + ch - (v / maxBar) * ch;
+        return `<text class="axis-label" x="${pad.l-4}" y="${y+3}" text-anchor="end">${Math.round(v)}</text>`;
+      }).join('');
+
+      // 右Y轴标签（%）— 仅在有折线数据时显示
+      var yRight = '';
+      if (hasLine) {
+        const yRightTicks = [lineMin, lineMin + lineRange * 0.5, lineMin + lineRange, 0].filter((v, i, a) => a.indexOf(v) === i);
+        yRight = yRightTicks.map(v => {
+          const y = pad.t + ch - ((v - lineMin) / lineRange) * ch;
+          return `<text class="axis-label" x="${w-pad.r+4}" y="${y+3}" text-anchor="start">${v.toFixed(1)}%</text>`;
+        }).join('');
+      }
+
+      // 堆积柱
+      const bars = xLabels.map((label, i) => {
+        const x = pad.l + i * stepX + (stepX - barW) / 2;
+        let accY = pad.t + ch; // 从底开始
+        const segs = barSeries.map(r => {
+          const segH = (r.values[i] / maxBar) * ch;
+          accY -= segH;
+          return `<rect x="${x}" y="${accY}" width="${barW}" height="${segH}" fill="${r.color}" />`;
+        }).join('');
+        // 柱顶总计
+        const total = totals[i];
+        const totalY = pad.t + ch - (total / maxBar) * ch;
+        return `${segs}<text class="bar-label" x="${x + barW/2}" y="${totalY - 4}" text-anchor="middle">${total}</text>`;
+      }).join('');
+
+      // X轴标签
+      const xLabels2 = xLabels.map((l, i) =>
+        `<text class="axis-label" x="${pad.l + i*stepX + stepX/2}" y="${h-8}" text-anchor="middle">${l}</text>`
+      ).join('');
+
+      // 折线（同比增速）
+      const lineColor = C_LINE;
+      const linePts = [];
+      const lineDots = [];
+      lineValues.forEach((v, i) => {
+        if (v === null || v === undefined) return;
+        const x = pad.l + i * stepX + stepX / 2;
+        const y = pad.t + ch - ((v - lineMin) / lineRange) * ch;
+        linePts.push(`${x},${y}`);
+        lineDots.push(`<circle cx="${x}" cy="${y}" r="3.5" fill="${lineColor}" stroke="#fff" stroke-width="1.5" />`);
+        // 数据标签
+        const labelY = v < 0 ? y + 14 : y - 8;
+        const fillColor = v < 0 ? '#EF4444' : lineColor;
+        lineDots.push(`<text class="line-label" x="${x}" y="${labelY}" text-anchor="middle" fill="${fillColor}">${v > 0 ? '+' : ''}${v}%</text>`);
+      });
+      const polyline = linePts.length > 0 ? `<polyline points="${linePts.join(' ')}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />` : '';
+
+      // 0轴线 — 仅在有折线数据时显示
+      var zeroLine = '';
+      if (hasLine) {
+        const zeroY = pad.t + ch - ((0 - lineMin) / lineRange) * ch;
+        zeroLine = `<line x1="${pad.l}" y1="${zeroY}" x2="${w-pad.r}" y2="${zeroY}" stroke="#DCE5F0" stroke-width="1" />`;
+      }
+
+      // 坐标轴线（左Y轴 + 底部X轴；右Y轴仅在有折线时显示）
+      var rightAxis = hasLine ? `<line x1="${w-pad.r}" y1="${pad.t}" x2="${w-pad.r}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />` : '';
+      const axisLines = `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />${rightAxis}<line x1="${pad.l}" y1="${pad.t+ch}" x2="${w-pad.r}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />`;
+
+      container.innerHTML = `<svg class="combo-viz" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${grid}${axisLines}${zeroLine}${bars}${yLeft}${yRight}${xLabels2}${polyline}${lineDots.join('')}</svg>`;
+      const foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legendItems;
+    }
+
+    /* ===== 折柱图：堆积柱(占比100%) + 折线(渗透率) 双Y轴 ===== */
+    function renderStackedCombo(container, xLabels, barSeries, lineValues, lineLabel, showRightAxis) {
+      const n = xLabels.length;
+      const w = Math.max(600, n * 80), h = 280, pad = { t:20, r:45, b:30, l:45 };
+      const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      const stepX = cw / n, barW = stepX * 0.5;
+      const hasLine = !!(lineValues && lineValues.some(v => v !== null && v !== undefined));
+      const showRight = hasLine && showRightAxis !== false;
+
+      // 图例
+      const legendItems = barSeries.slice().reverse().map(r =>
+        `<span class="legend-item"><span class="legend-dot" style="background:${r.color}"></span>${r.name}</span>`
+      ).join('') + (hasLine ? `<span class="legend-item"><span style="width:12px;height:2px;background:${C_LINE};display:inline-block;border-radius:1px;"></span>${lineLabel}</span>` : '');
+
+      // 网格线 (0%, 25%, 50%, 75%, 100%)
+      const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
+        const y = pad.t + ch - p * ch;
+        return `<line class="grid-line" x1="${pad.l}" y1="${y}" x2="${w-pad.r}" y2="${y}" stroke-dasharray="3,3" />`;
+      }).join('');
+      const axisLines = `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />` + (showRight ? `<line x1="${w-pad.r}" y1="${pad.t}" x2="${w-pad.r}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />` : '') + `<line x1="${pad.l}" y1="${pad.t+ch}" x2="${w-pad.r}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />`;
+
+      // 左Y轴标签
+      const yLeft = [0, 25, 50, 75, 100].map(p => {
+        const y = pad.t + ch - (p/100) * ch;
+        return `<text class="axis-label" x="${pad.l-4}" y="${y+3}" text-anchor="end">${p}%</text>`;
+      }).join('');
+
+      // 右Y轴标签（NEV渗透率%）— 仅在有折线数据且允许右轴时显示
+      var yRight = '';
+      if (showRight) {
+        const lineMax = Math.max(...lineValues, 80);
+        const lineMin = 0;
+        const lineRange = lineMax - lineMin || 1;
+        const yRightTicks = [0, lineMax * 0.25, lineMax * 0.5, lineMax * 0.75, lineMax];
+        yRight = yRightTicks.map(v => {
+          const y = pad.t + ch - (v / lineMax) * ch;
+          return `<text class="axis-label" x="${w-pad.r+4}" y="${y+3}" text-anchor="start">${Math.round(v)}%</text>`;
+        }).join('');
+      }
+
+      // 堆积柱
+      const bars = xLabels.map((label, i) => {
+        const x = pad.l + i * stepX + (stepX - barW) / 2;
+        let accY = pad.t + ch;
+        const segs = barSeries.map(r => {
+          const segH = r.values[i] * ch;
+          accY -= segH;
+          const pct = (r.values[i] * 100).toFixed(1);
+          const textColor = r.name === 'EV' || r.name === 'XEV' || r.name === 'HEV' ? '#374151' : '#fff';
+          return `<rect x="${x}" y="${accY}" width="${barW}" height="${segH}" fill="${r.color}" />` +
+                 (segH > 16 ? `<text class="seg-label" x="${x + barW/2}" y="${accY + segH/2 + 3}" text-anchor="middle" fill="${textColor}">${pct}%</text>` : '');
+        }).join('');
+        return segs;
+      }).join('');
+
+      // X轴标签
+      const xLabels2 = xLabels.map((l, i) =>
+        `<text class="axis-label" x="${pad.l + i*stepX + stepX/2}" y="${h-8}" text-anchor="middle">${l}</text>`
+      ).join('');
+
+      // 折线（NEV渗透率）
+      const lineColor = C_LINE;
+      const linePts = [];
+      const lineDots = [];
+      if (hasLine) {
+        const lineMaxLocal = Math.max(...lineValues, 80);
+        lineValues.forEach((v, i) => {
+          const x = pad.l + i * stepX + stepX / 2;
+          const y = pad.t + ch - (v / lineMaxLocal) * ch;
+          linePts.push(`${x},${y}`);
+          lineDots.push(`<circle cx="${x}" cy="${y}" r="3" fill="${lineColor}" stroke="#fff" stroke-width="1.5" />`);
+          lineDots.push(`<text class="line-label" x="${x}" y="${y - 7}" text-anchor="middle" fill="${lineColor}">${v}%</text>`);
+        });
+      }
+      const polyline = `<polyline points="${linePts.join(' ')}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+
+      container.innerHTML = `<svg class="combo-viz" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${grid}${axisLines}${bars}${yLeft}${yRight}${xLabels2}${polyline}${lineDots.join('')}</svg>`;
+      const foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legendItems;
+    }
+
+    /* ===== 堆积柱状图 SVG（占比，带百分比标签） ===== */
+    function renderStackedSVG(container, xLabels, series, normalize) {
+      const n = xLabels.length;
+      const w = Math.max(500, n * 80), h = 280, pad = { t:20, r:20, b:30, l:45 };
+      const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      const stepX = cw / n;
+      const barW = stepX * 0.45;
+
+      const legendItems = series.slice().reverse().map(r =>
+        `<span class="legend-item"><span class="legend-dot" style="background:${r.color}"></span>${r.name}</span>`
+      ).join('');
+      const totals = xLabels.map(function(_, i) { return series.reduce(function(sum, r) { return sum + (r.values[i] || 0); }, 0); });
+      const maxTotal = Math.max.apply(null, totals.concat([1]));
+      const scaleMax = normalize === false ? maxTotal : 1;
+      const grid = [0, 0.25, 0.5, 0.75, 1].map(p => {
+        const y = pad.t + ch - p * ch;
+        return `<line class="grid-line" x1="${pad.l}" y1="${y}" x2="${w-pad.r}" y2="${y}" stroke-dasharray="3,3" />`;
+      }).join('');
+      const axisLines = `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" /><line x1="${pad.l}" y1="${pad.t+ch}" x2="${w-pad.r}" y2="${pad.t+ch}" stroke="var(--border)" stroke-width="1" />`;
+      const yLeft = [0, 0.25, 0.5, 0.75, 1].map(function(p) {
+        const y = pad.t + ch - p * ch;
+        const value = normalize === false ? Math.round(p * scaleMax) : Math.round(p * 100) + '%';
+        return `<text class="axis-label" x="${pad.l-4}" y="${y+3}" text-anchor="end">${value}</text>`;
+      }).join('');
+      const bars = xLabels.map((label, i) => {
+        const x = pad.l + i * stepX + (stepX - barW) / 2;
+        let accY = pad.t + ch;
+        const segs = series.map(r => {
+          const rawValue = r.values[i] || 0;
+          const value = normalize === false ? rawValue : (totals[i] ? rawValue / totals[i] : 0);
+          const segH = value / scaleMax * ch;
+          accY -= segH;
+          const displayValue = normalize === false ? rawValue : Math.round(value * 100) + '%';
+          const textColor = r.name === 'EV' || r.name === 'XEV' ? '#374151' : '#fff';
+          return `<rect x="${x}" y="${accY}" width="${barW}" height="${segH}" fill="${r.color}" />` +
+                 (segH > 18 ? `<text class="seg-label" x="${x + barW/2}" y="${accY + segH/2 + 3}" text-anchor="middle" fill="${textColor}">${displayValue}</text>` : '');
+        }).join('');
+        return segs;
+      }).join('');
+
+      // X轴标签
+      const xLabels2 = xLabels.map((l, i) =>
+        `<text class="axis-label" x="${pad.l + i*stepX + stepX/2}" y="${h-8}" text-anchor="middle">${l}</text>`
+      ).join('');
+
+      container.innerHTML = `<svg class="combo-viz" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${grid}${axisLines}${bars}${yLeft}${xLabels2}</svg>`;
+      const foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legendItems;
+    }
+
+    /* 饼图统一色卡 — 启源蓝渐变 + 品牌橙系 */
+    var PIE_PALETTE = ['#2E5F95', '#5AA0E6', '#8FC0EF', '#BFDCF6', '#E68620', '#F0A94D', '#6B7280', '#9CA3AF', '#D1D5DB', '#374151'];
+
+    function renderPieChart(container, labels, values, colors) {
+      var palette = (colors && colors.length >= values.length) ? colors : PIE_PALETTE;
+      const total = values.reduce((a, b) => a + b, 0);
+      const cx = 140, cy = 110, r = 90;
+      let angle = -Math.PI / 2;
+      const arcs = values.map((v, i) => {
+        const slice = (v / total) * Math.PI * 2;
+        const x1 = cx + Math.cos(angle) * r;
+        const y1 = cy + Math.sin(angle) * r;
+        angle += slice;
+        const x2 = cx + Math.cos(angle) * r;
+        const y2 = cy + Math.sin(angle) * r;
+        const large = slice > Math.PI ? 1 : 0;
+        var fill = palette[i % palette.length];
+        return `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z" fill="${fill}" />`;
+      }).join('');
+      const legend = labels.map((l, i) => {
+        const pct = ((values[i] / total) * 100).toFixed(1);
+        var fill = palette[i % palette.length];
+        return `<div class="pie-legend-item"><span class="legend-dot" style="background:${fill};width:9px;height:9px;border-radius:2px;display:inline-block;"></span>${l}<span class="pie-legend-val">${pct}%</span></div>`;
+      }).reverse().join('');
+      container.innerHTML = `<svg class="pie-viz-svg" viewBox="0 0 280 220" preserveAspectRatio="xMidYMid meet">${arcs}<circle cx="${cx}" cy="${cy}" r="35" fill="#fff" /><text x="${cx}" y="${cy+3}" text-anchor="middle" font-size="11" fill="var(--text-2)" font-weight="600">总计</text></svg>`;
+      const foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legend;
+    }
+
+    function renderAreaCombo(container, labels, series, lineValues, lineLabel) {
+      var n = labels.length, w = Math.max(600, n * 70), h = 280, pad = { t:20, r:45, b:30, l:45 };
+      var cw = w - pad.l - pad.r, ch = h - pad.t - pad.b, stepX = cw / (n - 1 || 1);
+      var colors = ['#2E5F95', '#5AA0E6', '#8FC0EF', '#E68620', '#10B981', '#7C3AED'];
+      var totals = labels.map(function(_, i) { return series.reduce(function(sum, s) { return sum + (s.values[i] || 0); }, 0); });
+      var maxVal = Math.max.apply(null, totals.concat([1]));
+      var grid = [0,.25,.5,.75,1].map(function(p) { var y = pad.t + ch - p * ch; return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w-pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />'; }).join('');
+      var areas = '', cumulative = labels.map(function() { return 0; });
+      series.forEach(function(s, si) {
+        var top = s.values.map(function(v, i) { return [pad.l + i * stepX, pad.t + ch - ((cumulative[i] + v) / maxVal) * ch]; });
+        var bottom = s.values.map(function(v, i) { return [pad.l + i * stepX, pad.t + ch - (cumulative[i] / maxVal) * ch]; }).reverse();
+        areas += '<path d="M' + top.concat(bottom).map(function(p) { return p[0] + ',' + p[1]; }).join(' L') + ' Z" fill="' + colors[si % colors.length] + '" fill-opacity=".48" stroke="' + colors[si % colors.length] + '" stroke-width="1" />';
+        s.values.forEach(function(v, i) { cumulative[i] += v; });
+      });
+      var lineMax = Math.max.apply(null, (lineValues || []).filter(function(v) { return v != null; }).concat([1]));
+      var linePoints = (lineValues || []).map(function(v, i) { if (v == null) return null; return [pad.l + i * stepX, pad.t + ch - v / lineMax * ch]; }).filter(Boolean);
+      var line = linePoints.length ? '<polyline points="' + linePoints.map(function(p) { return p.join(','); }).join(' ') + '" fill="none" stroke="#E68620" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />' + linePoints.map(function(p, i) { return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="#E68620" stroke="#fff" stroke-width="1.5" />'; }).join('') : '';
+      var xLabels = labels.map(function(l, i) { return '<text class="axis-label" x="' + (pad.l + i * stepX) + '" y="' + (h-8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
+      var legend = series.map(function(s, i) { return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>'; }).reverse().join('') + (line ? '<span class="legend-item"><span style="width:12px;height:2px;background:#E68620;display:inline-block"></span>' + lineLabel + '</span>' : '');
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + areas + line + xLabels + '</svg>';
+      var foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legend;
+    }
+
+    function renderBubbleChart(container, labels, series) {
+      var w = Math.max(500, labels.length * 60), h = 280, pad = { t:20, r:25, b:30, l:45 };
+      var cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+      var maxVal = Math.max.apply(null, series.flatMap(function(s) { return s.values; }).concat([1]));
+      var colors = ['#2E5F95', '#E68620', '#10B981', '#7C3AED', '#F59E0B', '#6B7280'];
+      var grid = [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w - pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />'; }).join('');
+      var points = series.map(function(s, si) { return s.values.map(function(v, i) { var x = pad.l + (labels.length === 1 ? cw / 2 : i * cw / (labels.length - 1)); var y = pad.t + ch - v / maxVal * ch; var r = 7 + Math.sqrt(Math.max(v, 0) / maxVal) * 18; return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + colors[si % colors.length] + '" fill-opacity=".72" stroke="#fff" stroke-width="1.5"><title>' + s.name + ' · ' + labels[i] + ': ' + v + '</title></circle><text class="bar-label" x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" fill="#fff">' + v + '</text>'; }).join(''); }).join('');
+      var xLabels = labels.map(function(l, i) { var x = pad.l + (labels.length === 1 ? cw / 2 : i * cw / (labels.length - 1)); return '<text class="axis-label" x="' + x + '" y="' + (h - 8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
+      var legend = series.map(function(s, i) { return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>'; }).reverse().join('');
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + points + xLabels + '</svg>';
+      var foot = document.getElementById(container.id + '-foot');
+      if (foot) foot.innerHTML = legend;
+    }
+
+    function renderTableChart(container, labels, series, xLabel) {
+      container.innerHTML = `
+        <table class="table-viz">
+          <thead><tr><th>${xLabel || 'X'}</th>${series.map(s => `<th>${s.name}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${labels.map((l, i) => `<tr><td>${l}</td>${series.map(s => `<td>${s.values[i]}</td>`).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    /* ===== 固定图表初始化 ===== */
+    function initFixedCharts() {
+      // 1.1 规模 — 折柱图（堆积柱+折线，X轴年份范围受年份多选控制）
+      updateScaleChart();
+
+      // 1.2 规模自定义 — 折柱图（单柱+折线）
+      renderComboChart(document.getElementById('chart-scale-custom-body'),
+        SCALE_CUSTOM_YEARS,
+        [{ name: '销量', color: '#2E5F95', values: SCALE_CUSTOM_SALES }],
+        SCALE_CUSTOM_GROWTH, '同比增速', false);
+
+      // 2.2 动力结构
+      renderStackedSVG(document.getElementById('chart-power-body'), POWER_REGIONS, POWER_TYPES);
+
+      // 2.2 动力结构自定义 — 折柱图（堆积柱+NEV渗透率折线）
+      renderStackedCombo(document.getElementById('chart-power-custom-body'), POWER_CUSTOM_YEARS, POWER_CUSTOM_TYPES, NEV_PENETRATION, 'NEV渗透率', false);
+    }
+
+    // ===== 1.1 规模 · 年份多选（作为 X 轴统计维度） =====
+    let scaleYearsSel = SCALE_VERSIONS.slice();
+
+    function scaleYearLabel() {
+      if (scaleYearsSel.length >= SCALE_VERSIONS.length) return '年份：全部年份';
+      var txt = scaleYearsSel.join('、');
+      if (txt.length <= 18) return '年份：' + txt;
+      return '年份：' + scaleYearsSel.slice(0, 2).join('、') + ' 等' + scaleYearsSel.length + '个';
+    }
+
+    function scaleYearOptionsHtml() {
+      return SCALE_VERSIONS.map(function(y) {
+        var checked = scaleYearsSel.indexOf(y) > -1;
+        var lastOne = checked && scaleYearsSel.length === 1;
+        return '<label class="chart-filter-opt' + (checked ? ' checked' : '') + (lastOne ? ' disabled' : '') + '" onclick="scaleYearToggle(\'' + y + '\', event)">'
+          + '<input type="checkbox"' + (checked ? ' checked' : '') + (lastOne ? ' disabled' : '') + '>'
+          + '<span class="cf-opt-name">' + y + '</span>'
+          + '</label>';
+      }).join('');
+    }
+
+    function refreshScaleYearControl() {
+      var label = document.getElementById('scale-year-label');
+      var body = document.getElementById('scale-year-options');
+      if (label) label.textContent = scaleYearLabel();
+      if (body) body.innerHTML = scaleYearOptionsHtml();
+    }
+
+    function toggleScaleYearPanel(ev) {
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      var wrap = document.getElementById('scale-year-wrap');
+      if (!wrap) return;
+      wrap.classList.toggle('open');
+      refreshScaleYearControl();
+    }
+
+    function scaleYearSelectAll(ev) {
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      scaleYearsSel = SCALE_VERSIONS.slice();
+      refreshScaleYearControl();
+      updateScaleChart();
+    }
+
+    function scaleYearToggle(y, ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      var idx = scaleYearsSel.indexOf(y);
+      if (idx > -1) {
+        if (scaleYearsSel.length <= 1) return; // 至少保留一个年份
+        scaleYearsSel.splice(idx, 1);
+      } else {
+        scaleYearsSel.push(y);
+      }
+      scaleYearsSel = SCALE_VERSIONS.filter(function(v) { return scaleYearsSel.indexOf(v) > -1; });
+      refreshScaleYearControl();
+      updateScaleChart();
+    }
+
+    function scaleYearFilterHtml() {
+      return '<div class="chart-filter-multi" id="scale-year-wrap">'
+        + '<button type="button" class="chart-filter-trigger" title="选择参与统计的年份（可多选）" onclick="toggleScaleYearPanel(event)">'
+        + '<span class="cf-value" id="scale-year-label">' + scaleYearLabel() + '</span>'
+        + '<span class="cf-caret"></span>'
+        + '</button>'
+        + '<div class="chart-filter-pop">'
+        + '<div class="chart-filter-pop-head">'
+        + '<span class="cf-pop-title">年份（可多选，作为统计维度）</span>'
+        + '<button type="button" class="cf-pop-link" onclick="scaleYearSelectAll(event)">全选</button>'
+        + '</div>'
+        + '<div class="chart-filter-pop-body" id="scale-year-options">' + scaleYearOptionsHtml() + '</div>'
+        + '</div>'
+        + '</div>';
+    }
+
+    document.addEventListener('click', function(ev) {
+      var wrap = document.getElementById('scale-year-wrap');
+      if (wrap && wrap.classList.contains('open') && !wrap.contains(ev.target)) {
+        wrap.classList.remove('open');
+      }
+    });
+
+    function updateScaleChart() {
+      var body = document.getElementById('chart-scale-body');
+      if (!body) return;
+      if (!scaleYearsSel.length) {
+        body.innerHTML = '<div class="chart-empty-hint">请至少勾选一个年份后查看</div>';
+        var footEl = document.getElementById('chart-scale-body-foot');
+        if (footEl) footEl.innerHTML = '';
+        return;
+      }
+      function sliceByYears(arr) {
+        return scaleYearsSel.map(function(y) { return arr[SCALE_VERSIONS.indexOf(y)]; });
+      }
+      var regions = SCALE_REGIONS.map(function(r) {
+        return { name: r.name, color: r.color, values: sliceByYears(r.values) };
+      });
+      renderComboChart(body, scaleYearsSel.slice(), regions, sliceByYears(SCALE_GROWTH), '同比增速', false);
+    }
+
+    function updateScaleCustomChart() {
+      renderComboChart(document.getElementById('chart-scale-custom-body'),
+        SCALE_CUSTOM_YEARS,
+        [{ name: '销量', color: '#2E5F95', values: SCALE_CUSTOM_SALES }],
+        SCALE_CUSTOM_GROWTH, '同比增速', false);
+    }
+
+    function toggleFixedGridView() {
+      const grid = document.querySelector('.fixed-grid');
+      const button = document.getElementById('fixed-grid-view-toggle');
+      if (!grid || !button) return;
+      const isTwoColumn = grid.classList.toggle('is-two-column');
+      button.classList.toggle('active', isTwoColumn);
+      button.setAttribute('aria-label', isTwoColumn ? '切换为单列视图' : '切换为两列视图');
+      button.setAttribute('title', isTwoColumn ? '切换为单列视图' : '切换为两列视图');
+    }
+
+    function switchDashTab(name) {
+      const fixedPanel = document.getElementById('dash-panel-fixed');
+      const customPanel = document.getElementById('dash-panel-custom');
+      const tabFixed = document.getElementById('dash-tab-fixed');
+      const tabCustom = document.getElementById('dash-tab-custom');
+      const toggleBtn = document.getElementById('fixed-grid-view-toggle');
+      const addBtn = document.getElementById('custom-add-btn');
+      if (!fixedPanel || !customPanel || !tabFixed || !tabCustom || !toggleBtn || !addBtn) return;
+      const isCustom = name === 'custom';
+      fixedPanel.hidden = isCustom;
+      customPanel.hidden = !isCustom;
+      tabFixed.classList.toggle('active', !isCustom);
+      tabCustom.classList.toggle('active', isCustom);
+      tabFixed.setAttribute('aria-selected', String(!isCustom));
+      tabCustom.setAttribute('aria-selected', String(isCustom));
+      toggleBtn.style.display = isCustom ? 'none' : 'inline-flex';
+      addBtn.style.display = isCustom ? 'inline-flex' : 'none';
+    }
+
+    function onFixedFilterChange(id, optKey) {
+      if (id === 'scale-version' || id === 'scale-market') {
+        updateScaleChart();
+      }
+      if (id.startsWith('sc-')) {
+        updateScaleCustomChart();
+      }
+    }
+
+    /* ===== 全屏图表编辑器 ===== */
+    let ccState = {
+      name: '', type: 'bar',
+      versionType: '发布版', version: VERSIONS['发布版'][0],
+      slots: { x: [], y: [], y2: [], g: [] },
+      filters: {}, filterRows: [],
+    };
+    let ccActiveTab = 'chart';
+    let ccFilterCombos = [];
+    let ccComboSelectedId = '';
+    let ccComboEditActive = false;
+    let ccComboDraftName = '';
+
+    const CC_FIELDS = [
+      ...DIMENSIONS.map(d => ({ key: d.key, name: d.label || d.key, type: 'dim', options: d.options })),
+      ...METRICS.map(m => ({ key: m, name: m, type: 'metric' })),
+    ];
+
+    function ccFieldName(key) {
+      const def = CC_FIELDS.find(function(f) { return f.key === key; });
+      return (def && def.name) || key;
+    }
+
+    const CC_TYPE_ICONS = {
+      bar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="6" width="4" height="15"/><rect x="17" y="3" width="4" height="18"/></svg>',
+      stackedBar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="5" height="16"/><rect x="10" y="9" width="5" height="11"/><rect x="15" y="6" width="5" height="14"/></svg>',
+      percentBar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="4"/><rect x="4" y="10" width="16" height="4"/><rect x="4" y="15" width="16" height="4"/></svg>',
+      line: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/></svg>',
+      lineMarkers: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><circle cx="3" cy="17" r="1.5" fill="currentColor"/><circle cx="9" cy="11" r="1.5" fill="currentColor"/><circle cx="13" cy="15" r="1.5" fill="currentColor"/><circle cx="21" cy="7" r="1.5" fill="currentColor"/></svg>',
+      combo: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/><polyline points="4 14 11 9 18 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      percentCombo: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="4" height="10"/><rect x="9" y="6" width="4" height="14"/><polyline points="4 8 11 12 20 4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      areaCombo: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 19V8l6 4 5-7 7 5v9z" fill="currentColor" fill-opacity=".18"/><polyline points="3 8 9 12 14 5 21 10"/></svg>',
+      bubble: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><circle cx="16" cy="8" r="5"/><circle cx="18" cy="18" r="2.5"/></svg>',
+      pie: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>',
+      table: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
+    };
+    const CC_TYPE_NAMES = { bar: '柱形图', stackedBar: '堆积柱形图', percentBar: '百分比堆积柱形图', line: '折线图（无数据标记）', lineMarkers: '折线图（带数据标记）', combo: '折柱图', percentCombo: '折柱图（带百分比）', areaCombo: '折柱图（堆积面积）', bubble: '单气泡图', pie: '饼图', table: '表格' };
+
+    let ccRawDataCache = null;
+
+    function ccGenerateRawData() {
+      if (ccRawDataCache) return ccRawDataCache;
+      const rows = [];
+      const regionCountries = {
+        '中国': ['中国'], '欧洲': ['德国', '法国'], '中南美': ['巴西'],
+        '东南亚': ['泰国'], '中东非': ['阿联酋'], '欧亚': ['日本', '韩国']
+      };
+      const regions = Object.keys(regionCountries);
+      const years = ['2024', '2025', '2026', '2027F'];
+      const versions = ['2026-A-IPV【Publish_0815】', '2026-B-IPV【Publish_0720】', '2026-A-IPV【Update_0810】', '2026-B-IPV【Update_0705】'];
+      regions.forEach(function(region, regionIndex) {
+        years.forEach(function(year, yearIndex) {
+          regionCountries[region].forEach(function(country, countryIndex) {
+            ['PV', 'LCV'].forEach(function(body, bodyIndex) {
+              const seed = regionIndex * 31 + yearIndex * 17 + countryIndex * 7 + bodyIndex * 13;
+              rows.push({
+                'IPV版本': versions[(yearIndex + bodyIndex) % versions.length],
+                '区域': region, '年份': year, '国家': country, '车身大类': body,
+                '品类': body === 'PV' ? (bodyIndex ? 'SUV' : '轿车') : '皮卡',
+                '品种': ['紧凑型', '中型', '中大型'][seed % 3], '车格': ['A级', 'B级', 'C级'][seed % 3],
+                '动力': ['ICE', 'HEV', 'XEV', 'EV'][seed % 4], '价格段': ['10-20万', '20-30万', '30-50万'][seed % 3],
+                '法规聚类': ['高标', '右低', '左低'][seed % 3], '目标市场': seed % 3 === 0 ? '否' : '是', '重点国家': seed % 4 === 0 ? '否' : '是',
+                '规模(万辆)': 500 + seed * 23 + yearIndex * 80, '增速(%)': +(5 + (seed % 18) * 0.7 - yearIndex * 0.4).toFixed(1),
+                '占比(%)': +(18 + (seed % 24) * 1.3).toFixed(1), '车型数量': 8 + seed % 43
+              });
+            });
+          });
+        });
+      });
+      ccRawDataCache = rows;
+      return rows;
+    }
+
+    function ccConvertLegacyFilters(filtersObj) {
+      const rows = [];
+      Object.keys(filtersObj || {}).forEach(function(key) {
+        const value = filtersObj[key];
+        if (key === 'IPV版本') return;
+        if (!value || value === '全部' || (key === '区域' && value === '全球')) return;
+        rows.push({ dim: key, values: [value] });
+      });
+      return rows;
+    }
+
+    function ccEnsureFilterRows() {
+      if (!Array.isArray(ccState.filterRows)) {
+        ccState.filterRows = ccConvertLegacyFilters(ccState.filters || {});
+      }
+    }
+
+    function ccGetFilterRows() {
+      const source = Array.isArray(ccState.filterRows) ? ccState.filterRows : ccConvertLegacyFilters(ccState.filters || {});
+      return source.map(function(r) {
+        return { dim: r.dim, values: Array.isArray(r.values) ? r.values.slice() : [] };
+      }).filter(function(r) { return r.dim; });
+    }
+
+    function ccGetDimValueOptions(dimKey) {
+      const def = CC_FIELDS.find(function(f) { return f.key === dimKey && f.type === 'dim'; });
+      const opts = (def && def.options ? def.options.slice() : []);
+      const seen = {};
+      opts.forEach(function(o) { seen[o] = 1; });
+      ccGenerateRawData().forEach(function(row) {
+        const v = row[dimKey];
+        if (v != null && v !== '' && !seen[v]) { seen[v] = 1; opts.push(v); }
+      });
+      return opts;
+    }
+
+    function ccGetFilteredData() {
+      const rows = ccGetFilterRows();
+      const legacyVersion = (ccState.filters || {})['IPV版本'];
+      let targetVersion = ccState.version;
+      if (legacyVersion && legacyVersion !== '全部' && legacyVersion !== '当前最新版本') targetVersion = legacyVersion;
+      return ccGenerateRawData().filter(function(row) {
+        if (targetVersion && row['IPV版本'] !== targetVersion) return false;
+        return rows.every(function(f) {
+          if (!f.values || !f.values.length) return true;
+          return f.values.indexOf(row[f.dim]) !== -1;
+        });
+      });
+    }
+
+    function ccRenderFilterHead() {
+      const head = document.getElementById('cc-filter-head');
+      if (!head) return;
+      const rows = ccGetFilterRows();
+      const activeCount = rows.filter(function(r) { return r.values && r.values.length; }).length;
+      const comboOpts = ['<option value="">选择常用筛选组合…</option>'].concat(ccFilterCombos.map(function(c) {
+        return '<option value="' + c.id + '"' + (c.id === ccComboSelectedId ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
+      })).join('');
+      head.innerHTML =
+        '<div class="cc-filter-head-top">' +
+        '<span class="cc-filter-count">' + (activeCount ? activeCount + ' / ' + DIMENSIONS.length + ' 个维度已筛选' : '未设置筛选') + '</span>' +
+        '<span class="cc-filter-hint">维度内多选为“或”，不同维度之间为“并且”；点「全部」该维度即不参与过滤</span>' +
+        '</div>' +
+        '<div class="cc-combo-row"><select class="cc-combo-select" onchange="ccOnComboChange(this.value)">' + comboOpts + '</select></div>' +
+        '<div class="cc-filter-actions">' +
+        '<button class="cc-btn" title="将当前筛选条件保存为常用组合" ' + (activeCount ? '' : 'disabled') + ' onclick="ccStartSaveCombo()">另存为组合</button>' +
+        '<button class="cc-btn danger" title="删除当前选中的组合" ' + (ccComboSelectedId ? '' : 'disabled') + ' onclick="ccStartDeleteCombo()">删除组合</button>' +
+        '<button class="cc-btn cc-btn-clear" title="清空全部维度的筛选值" ' + (activeCount ? '' : 'disabled') + ' onclick="ccClearAllFilters()">清空筛选</button>' +
+        '</div>' +
+        (ccComboEditActive ?
+          '<div class="cc-combo-edit"><span style="font-size:11px;color:var(--text-3);">组合名称</span><input class="cc-combo-name-input" placeholder="如：中国 · 2025 · SUV" value="' + escapeHtml(ccComboDraftName) + '" oninput="ccComboDraftName=this.value" onkeydown="if(event.key===\'Enter\')ccConfirmSaveCombo()" /><button class="cc-btn primary" onclick="ccConfirmSaveCombo()">保存</button><button class="cc-btn" onclick="ccCancelSaveCombo()">取消</button></div>'
+          : '');
+    }
+
+    function ccRenderFilterRows() {
+      const wrap = document.getElementById('cc-filter-rows');
+      if (!wrap) return;
+      const rows = ccGetFilterRows();
+      const rowValuesOf = function(dim) {
+        const found = rows.find(function(r) { return r.dim === dim; });
+        return (found && found.values) || [];
+      };
+      const q = function(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); };
+      wrap.innerHTML = DIMENSIONS.map(function(d) {
+        const values = rowValuesOf(d.key);
+        const chips = ['<span class="cc-val-chip all' + (values.length === 0 ? ' on' : '') + '" onclick="ccFilterValueToggleAll(\'' + q(d.key) + '\')">全部</span>'];
+        ccGetDimValueOptions(d.key).forEach(function(o) {
+          chips.push('<span class="cc-val-chip' + (values.indexOf(o) !== -1 ? ' on' : '') + '" onclick="ccFilterValueToggle(\'' + q(d.key) + '\',\'' + q(o) + '\')">' + escapeHtml(o) + '</span>');
+        });
+        return '<div class="cc-filter-dim-row">' +
+          '<div class="cc-filter-dim-label"><span class="cc-field-tag dim">D</span>' + escapeHtml(d.label || d.key) + '</div>' +
+          '<div class="cc-filter-dim-vals">' + chips.join('') + '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function ccRenderFilterBar() {
+      ccRenderFilterHead();
+      ccRenderFilterRows();
+    }
+
+    function ccGetOrCreateFilterRow(dim) {
+      ccEnsureFilterRows();
+      const rows = ccState.filterRows;
+      let row = rows.find(function(r) { return r.dim === dim; });
+      if (!row) { row = { dim: dim, values: [] }; rows.push(row); }
+      return row;
+    }
+
+    function ccFilterValueToggle(dim, value) {
+      ccComboSelectedId = '';
+      const row = ccGetOrCreateFilterRow(dim);
+      const values = row.values = (row.values || []).slice();
+      const pos = values.indexOf(value);
+      if (pos === -1) values.push(value); else values.splice(pos, 1);
+      ccRenderFilterBar();
+      ccRenderPreview();
+    }
+
+    function ccFilterValueToggleAll(dim) {
+      ccComboSelectedId = '';
+      const row = ccGetOrCreateFilterRow(dim);
+      row.values = [];
+      ccRenderFilterBar();
+      ccRenderPreview();
+    }
+
+    function ccClearAllFilters() {
+      ccEnsureFilterRows();
+      ccComboSelectedId = '';
+      ccComboEditActive = false;
+      (ccState.filterRows || []).forEach(function(r) { r.values = []; });
+      ccRenderFilterBar();
+      ccRenderPreview();
+    }
+
+    function ccStartSaveCombo() {
+      ccComboDraftName = '';
+      ccComboEditActive = true;
+      ccRenderFilterHead();
+      const input = document.querySelector('#cc-filter-head .cc-combo-name-input');
+      if (input) input.focus();
+    }
+
+    function ccCancelSaveCombo() {
+      ccComboEditActive = false;
+      ccRenderFilterHead();
+    }
+
+    function ccConfirmSaveCombo() {
+      const name = (ccComboDraftName || '').trim();
+      const rows = ccGetFilterRows().filter(function(r) { return r.values && r.values.length; }).map(function(r) { return { dim: r.dim, values: r.values.slice() }; });
+      if (!name || !rows.length) { ccComboDraftName = ''; ccComboEditActive = false; ccRenderFilterHead(); return; }
+      const existing = ccFilterCombos.find(function(c) { return c.name === name; });
+      if (existing) {
+        existing.rows = rows;
+        ccComboSelectedId = existing.id;
+      } else {
+        const combo = { id: 'fc_' + Date.now(), name: name, rows: rows };
+        ccFilterCombos.push(combo);
+        ccComboSelectedId = combo.id;
+      }
+      ccComboDraftName = '';
+      ccComboEditActive = false;
+      ccRenderFilterHead();
+    }
+
+    function ccOnComboChange(id) {
+      ccComboSelectedId = id || '';
+      ccComboEditActive = false;
+      const combo = ccFilterCombos.find(function(c) { return c.id === id; });
+      if (!combo) return;
+      ccState.filterRows = JSON.parse(JSON.stringify(combo.rows));
+      ccRenderFilterBar();
+      ccRenderPreview();
+    }
+
+    function ccStartDeleteCombo() {
+      const combo = ccFilterCombos.find(function(c) { return c.id === ccComboSelectedId; });
+      if (!combo) return;
+      openConfirm({
+        title: '删除筛选组合',
+        desc: '确定删除常用筛选组合「' + combo.name + '」吗？删除后不影响当前图表的筛选条件。',
+        okText: '删除', cancelText: '取消',
+        onOk: function() {
+          ccFilterCombos = ccFilterCombos.filter(function(c) { return c.id !== ccComboSelectedId; });
+          ccComboSelectedId = '';
+          ccRenderFilterHead();
+        }
+      });
+    }
+
+    function ccAggregateData(rows) {
+      const slots = ccState.slots || {};
+      const xField = (slots.x && slots.x[0] || {}).field || '区域';
+      const yField = (slots.y && slots.y[0] || {}).field || '规模(万辆)';
+      const groupField = (slots.g && slots.g[0] || {}).field || '';
+      const labels = [];
+      const grouped = {};
+      (rows || []).forEach(function(row) {
+        const label = row[xField] == null ? '未设置' : String(row[xField]);
+        const group = groupField ? (row[groupField] == null ? '未设置' : String(row[groupField])) : yField;
+        if (!labels.includes(label)) labels.push(label);
+        if (!grouped[group]) grouped[group] = {};
+        grouped[group][label] = (grouped[group][label] || 0) + Number(row[yField] || 0);
+      });
+      const series = Object.keys(grouped).map(function(name) {
+        return { name: name, values: labels.map(function(label) { return +(grouped[name][label] || 0).toFixed(1); }) };
+      });
+      return { labels: labels, series: series };
+    }
+
+    function openCustomChartModal(chartId) {
+      editingChartId = chartId || null;
+      const isEdit = !!chartId;
+      ccComboSelectedId = '';
+      ccComboEditActive = false;
+      ccComboDraftName = '';
+      const existing = chartId ? customCharts.find(c => c.id === chartId) : null;
+      if (existing) {
+        ccState = JSON.parse(JSON.stringify(existing.config));
+        ccEnsureFilterRows();
+      } else {
+        ccState = {
+          name: '', type: 'bar',
+          versionType: '发布版', version: VERSIONS['发布版'][0],
+          slots: { x: [{ field: '区域', agg: '' }], y: [{ field: '规模(万辆)', agg: 'SUM' }], y2: [], g: [] },
+          filters: {}, filterRows: [],
+        };
+      }
+      ccActiveTab = 'chart';
+      let editor = document.getElementById('cc-editor');
+      if (!editor) {
+        editor = document.createElement('div');
+        editor.id = 'cc-editor';
+        editor.className = 'cc-editor';
+        document.body.appendChild(editor);
+      }
+      editor.innerHTML = ccBuildEditorHTML(isEdit);
+      editor.classList.add('active');
+      ccRenderFields();
+      ccRenderSlotConfig();
+      ccRenderSlots();
+      ccRenderTypes();
+      ccSetupDropZones();
+      ccRenderFilterBar();
+      ccRenderPreview();
+    }
+
+    function ccBuildEditorHTML(isEdit) {
+      const versionOpts = Object.entries(VERSIONS).map(([group, vers]) =>
+        '<optgroup label="' + group + '">' + vers.map(v => '<option value="' + v + '"' + (v === ccState.version ? ' selected' : '') + '>' + v + '</option>').join('') + '</optgroup>'
+      ).join('');
+      return '<div class="cc-editor-top">' +
+        '<button class="cc-editor-back" onclick="ccCloseEditor()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>返回</button>' +
+        '<div class="cc-editor-title">' + (isEdit ? '编辑图表' : '新建图表') + '</div>' +
+        '<input class="cc-editor-name-input" placeholder="输入图表名称" value="' + (ccState.name||'') + '" oninput="ccState.name=this.value" />' +
+        '<div class="cc-editor-meta"><span class="cc-version-chip">' + ccState.version + '</span></div>' +
+        '<div class="cc-editor-actions"><button class="cc-editor-btn-save" onclick="ccSaveChart()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' + (isEdit ? '保存修改' : '添加到看板') + '</button></div>' +
+        '</div>' +
+        '<div class="cc-editor-body">' +
+        '<div class="cc-left">' +
+        '<div class="cc-left-section"><div class="cc-left-title">数据源</div><div style="font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:#10B981;"></span>IPV 预测数据（模拟）</div></div>' +
+        '<div class="cc-left-section" style="flex:1;overflow-y:auto;"><input class="cc-field-search" placeholder="搜索字段..." oninput="ccRenderFields(this.value)" /><div class="cc-field-group-label">维度</div><div id="cc-field-list-dim"></div><div class="cc-field-group-label">度量</div><div id="cc-field-list-metric"></div></div>' +
+        '<div class="cc-left-section" style="padding:0;"><div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--text-3);">图表类型</div><div class="cc-type-grid" id="cc-type-grid">' + [['柱形图',['bar','stackedBar','percentBar']],['折线图',['line','lineMarkers']],['折柱图',['combo','percentCombo','areaCombo']],['其他',['bubble','pie','table']]].map(function(group) { return '<div class="cc-type-group"><div class="cc-type-group-title">' + group[0] + '</div><div class="cc-type-group-options">' + group[1].map(function(type) { return '<div class="cc-type-card ' + (ccState.type === type ? 'active' : '') + '" data-type="' + type + '" onclick="ccSelectType(\'' + type + '\')">' + CC_TYPE_ICONS[type] + '<span>' + CC_TYPE_NAMES[type] + '</span></div>'; }).join('') + '</div></div>'; }).join('') + '</div></div>' +
+        '<div class="cc-left-section"><div class="cc-left-title">数据版本</div><div class="cc-version-group"><div class="cc-version-label">版本类型</div><select class="cc-version-select" onchange="ccOnVersionTypeChange(this.value)"><option value="发布版"' + (ccState.versionType === '发布版' ? ' selected' : '') + '>发布版 (Publish)</option><option value="更新版"' + (ccState.versionType === '更新版' ? ' selected' : '') + '>更新版 (Update)</option></select></div><div class="cc-version-group"><div class="cc-version-label">版本号</div><select class="cc-version-select" id="cc-version-select" onchange="ccOnVersionChange(this.value)">' + versionOpts + '</select></div></div>' +
+        '</div>' +
+        '<div class="cc-middle">' +
+        '<div class="cc-panel"><div class="cc-panel-head">字段配置</div><div class="cc-panel-body">' +
+        '<div class="cc-slot-row empty" data-slot="x"><div class="cc-slot-label">X 轴</div><div class="cc-slot-drop" id="cc-slot-x"><span class="cc-slot-empty-hint">拖入维度字段</span></div></div>' +
+        '<div class="cc-slot-row empty" data-slot="y"><div class="cc-slot-label">Y 轴(柱)</div><div class="cc-slot-drop" id="cc-slot-y"><span class="cc-slot-empty-hint">拖入度量字段</span></div></div>' +
+        '<div class="cc-slot-row empty" data-slot="y2"><div class="cc-slot-label">Y2(折线)</div><div class="cc-slot-drop" id="cc-slot-y2"><span class="cc-slot-empty-hint">拖入度量字段（折柱图用）</span></div></div>' +
+        '<div class="cc-slot-row empty" data-slot="g"><div class="cc-slot-label">分组</div><div class="cc-slot-drop" id="cc-slot-g"><span class="cc-slot-empty-hint">拖入维度字段（可选）</span></div></div>' +
+        '</div></div>' +
+        '<div class="cc-panel cc-filter-panel"><div class="cc-panel-head">筛选条件</div>' +
+        '<div class="cc-filter-head" id="cc-filter-head"></div>' +
+        '<div class="cc-filter-list" id="cc-filter-rows"></div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="cc-right"><div class="cc-preview-tabs"><div class="cc-preview-tab ' + (ccActiveTab==='chart'?'active':'') + '" data-tab="chart" onclick="ccSwitchTab(\'chart\')">图表</div><div class="cc-preview-tab ' + (ccActiveTab==='data'?'active':'') + '" data-tab="data" onclick="ccSwitchTab(\'data\')">原始数据 <span style="opacity:.6" id="cc-row-count"></span></div></div><div class="cc-preview-area" id="cc-preview-area"></div></div>' +
+        '</div>';
+    }
+
+    function ccCloseEditor() { document.getElementById('cc-editor').classList.remove('active'); }
+
+    function ccRenderFields(search) {
+      const dimList = document.getElementById('cc-field-list-dim');
+      const metricList = document.getElementById('cc-field-list-metric');
+      if (!dimList || !metricList) return;
+      const usedFields = new Set([].concat(ccState.slots.x, ccState.slots.y, ccState.slots.y2 || [], ccState.slots.g).map(function(s) { return s.field; }));
+      const filterFn = function(f) { return !search || f.name.includes(search); };
+      dimList.innerHTML = CC_FIELDS.filter(function(f) { return f.type === 'dim' && filterFn(f); }).map(function(f) {
+        const inUse = usedFields.has(f.key);
+        return '<div class="cc-field-item ' + (inUse ? 'in-use' : '') + '" draggable="true" data-field="' + f.key + '" ondragstart="ccOnDragStart(event,\'' + f.key + '\')" ondragend="this.classList.remove(\'dragging\')"><span class="cc-field-tag dim">D</span><span class="cc-field-name">' + f.name + '</span></div>';
+      }).join('') || '<div style="font-size:10px;color:var(--text-3);padding:4px 8px;">无匹配字段</div>';
+      metricList.innerHTML = CC_FIELDS.filter(function(f) { return f.type === 'metric' && filterFn(f); }).map(function(f) {
+        const inUse = usedFields.has(f.key);
+        return '<div class="cc-field-item ' + (inUse ? 'in-use' : '') + '" draggable="true" data-field="' + f.key + '" ondragstart="ccOnDragStart(event,\'' + f.key + '\')" ondragend="this.classList.remove(\'dragging\')"><span class="cc-field-tag metric">M</span><span class="cc-field-name">' + f.name + '</span></div>';
+      }).join('') || '<div style="font-size:10px;color:var(--text-3);padding:4px 8px;">无匹配字段</div>';
+    }
+
+    function ccOnDragStart(e, fieldKey) { e.dataTransfer.setData('text/plain', fieldKey); e.target.classList.add('dragging'); }
+
+    function ccSetupDropZones() {
+      document.querySelectorAll('.cc-slot-row').forEach(function(row) {
+        const slotKey = row.dataset.slot;
+        row.addEventListener('dragover', function(e) { e.preventDefault(); row.classList.add('dragover'); });
+        row.addEventListener('dragleave', function() { row.classList.remove('dragover','invalid-drop'); });
+        row.addEventListener('drop', function(e) {
+          e.preventDefault();
+          row.classList.remove('dragover','invalid-drop');
+          const fieldKey = e.dataTransfer.getData('text/plain');
+          const fieldDef = CC_FIELDS.find(function(f) { return f.key === fieldKey; });
+          if (!fieldDef) return;
+          if (slotKey === 'x' || slotKey === 'g') { if (fieldDef.type !== 'dim') { row.classList.add('invalid-drop'); setTimeout(function() { row.classList.remove('invalid-drop'); }, 800); return; } }
+          if (slotKey === 'y' || slotKey === 'y2') { if (fieldDef.type !== 'metric') { row.classList.add('invalid-drop'); setTimeout(function() { row.classList.remove('invalid-drop'); }, 800); return; } }
+          ['x','y','y2','g'].forEach(function(k) { ccState.slots[k] = (ccState.slots[k]||[]).filter(function(s) { return s.field !== fieldKey; }); });
+          if (slotKey === 'x' || slotKey === 'g') { ccState.slots[slotKey] = [{ field: fieldKey, agg: '' }]; }
+          else { ccState.slots[slotKey] = [{ field: fieldKey, agg: 'SUM' }]; }
+          ccRenderFields(document.querySelector('.cc-field-search') ? document.querySelector('.cc-field-search').value : '');
+          ccRenderSlots();
+          ccRenderPreview();
+        });
+      });
+    }
+
+    function ccRenderSlots() {
+      var slotCfg = CC_SLOT_CONFIG[ccState.type] || CC_SLOT_CONFIG.bar;
+      ['x','y','y2','g'].forEach(function(slotKey) {
+        const el = document.getElementById('cc-slot-' + slotKey);
+        if (!el) return;
+        const row = el.closest('.cc-slot-row');
+        if (row.style.display === 'none') return;
+        const items = ccState.slots[slotKey] || [];
+        var hint = (slotCfg[slotKey] || {}).hint || '拖入字段';
+        if (items.length === 0) {
+          row.classList.add('empty');
+          el.innerHTML = '<span class="cc-slot-empty-hint">' + hint + '</span>';
+        } else {
+          row.classList.remove('empty');
+          el.innerHTML = items.map(function(item, i) {
+            const def = CC_FIELDS.find(function(f) { return f.key === item.field; });
+            const tagClass = def && def.type === 'dim' ? 'dim' : 'metric';
+            const tagText = def && def.type === 'dim' ? 'D' : 'M';
+            return '<span class="cc-field-chip"><span class="cc-field-tag ' + tagClass + '" style="width:14px;height:14px;font-size:8px;">' + tagText + '</span>' + (def ? def.name : item.field) + (item.agg ? '<span class="cc-chip-agg">' + item.agg + '</span>' : '') + '<button class="cc-chip-close" onclick="ccRemoveSlot(\'' + slotKey + '\',' + i + ')">×</button></span>';
+          }).join('');
+        }
+      });
+    }
+
+    function ccRemoveSlot(slotKey, idx) {
+      ccState.slots[slotKey].splice(idx, 1);
+      ccRenderFields(document.querySelector('.cc-field-search') ? document.querySelector('.cc-field-search').value : '');
+      ccRenderSlots();
+      ccRenderPreview();
+    }
+
+    /* 各图表类型的槽位配置：visible=是否显示, label=显示名, hint=空提示 */
+    const CC_SLOT_CONFIG = {
+      bar:   { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴', hint:'拖入度量字段' }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      stackedBar: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴', hint:'拖入度量字段' }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      percentBar: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴', hint:'拖入度量字段' }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      line:  { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴', hint:'拖入度量字段' }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      lineMarkers: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴', hint:'拖入度量字段' }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      combo: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴(柱)', hint:'拖入度量字段' }, y2: { label:'Y2(折线)', hint:'拖入度量字段' }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      percentCombo: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴(柱)', hint:'拖入度量字段' }, y2: { label:'Y2(折线)', hint:'拖入度量字段' }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      areaCombo: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'Y 轴(面积)', hint:'拖入度量字段' }, y2: { label:'Y2(折线)', hint:'拖入度量字段' }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      bubble: { x: { label:'X 轴', hint:'拖入维度字段' }, y: { label:'气泡大小', hint:'拖入度量字段' }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+      pie:   { x: { label:'分类', hint:'拖入维度字段' }, y: { label:'值', hint:'拖入度量字段' }, y2: { visible:false }, g: { visible:false } },
+      table: { x: { label:'X 轴',     hint:'拖入维度字段'           }, y: { label:'Y 轴',     hint:'拖入度量字段'           }, y2: { visible:false }, g: { label:'分组', hint:'拖入维度字段（可选）' } },
+    };
+
+    function ccSelectType(type) {
+      ccState.type = type;
+      /* 切换类型时清除不再需要的槽位 */
+      var slotCfg = CC_SLOT_CONFIG[type] || {};
+      Object.keys(slotCfg).forEach(function(k) {
+        if (slotCfg[k].visible === false && ccState.slots[k]) {
+          ccState.slots[k] = [];
+        }
+      });
+      ccRenderTypes();
+      ccRenderSlotConfig();
+      ccRenderFields(document.querySelector('.cc-field-search') ? document.querySelector('.cc-field-search').value : '');
+      ccRenderSlots();
+      ccRenderPreview();
+    }
+
+    /* 根据图表类型刷新字段配置区域的槽位行 */
+    function ccRenderSlotConfig() {
+      var slotCfg = CC_SLOT_CONFIG[ccState.type] || CC_SLOT_CONFIG.bar;
+      ['x','y','y2','g'].forEach(function(k) {
+        var row = document.querySelector('.cc-slot-row[data-slot="' + k + '"]');
+        if (!row) return;
+        var cfg = slotCfg[k];
+        if (!cfg || cfg.visible === false) {
+          row.style.display = 'none';
+        } else {
+          row.style.display = '';
+          var labelEl = row.querySelector('.cc-slot-label');
+          if (labelEl && cfg.label) labelEl.textContent = cfg.label;
+        }
+      });
+    }
+    function ccRenderTypes() { document.querySelectorAll('.cc-type-card').forEach(function(c) { c.classList.toggle('active', c.dataset.type === ccState.type); }); }
+    function ccOnVersionTypeChange(vType) { ccState.versionType = vType; const vers = VERSIONS[vType] || []; const sel = document.getElementById('cc-version-select'); if (sel) { sel.innerHTML = vers.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join(''); } ccState.version = vers[0] || ''; ccUpdateMeta(); ccRenderPreview(); }
+    function ccOnVersionChange(version) { ccState.version = version; ccUpdateMeta(); ccRenderPreview(); }
+    function ccUpdateMeta() { const chip = document.querySelector('.cc-version-chip'); if (chip) chip.textContent = ccState.version; }
+    function ccSwitchTab(tab) { ccActiveTab = tab; document.querySelectorAll('.cc-preview-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === tab); }); ccRenderPreview(); }
+
+    function ccRenderPreview() {
+      const area = document.getElementById('cc-preview-area');
+      if (!area) return;
+      const slots = ccState.slots || {};
+      const hasConfig = (slots.x || []).length > 0 && (slots.y || []).length > 0;
+      if (ccActiveTab === 'data') { ccRenderRawData(area); }
+      else {
+        area.innerHTML = '<div class="cc-chart-stage"><div class="cc-chart-canvas" id="cc-chart-canvas"></div></div>';
+        const canvas = document.getElementById('cc-chart-canvas');
+        if (!hasConfig) { canvas.innerHTML = '<div class="cc-preview-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-placeholder)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 14l4-4 4 4 3-3 4 4"/></svg><div>请拖入字段配置图表后查看预览</div></div>'; return; }
+        ccRenderChart(canvas);
+      }
+    }
+
+    function ccRenderChart(container) {
+      const slots = ccState.slots || {};
+      const xField = (slots.x && slots.x[0] || {}).field || '区域';
+      const yField = (slots.y && slots.y[0] || {}).field || '规模(万辆)';
+      const y2Field = (slots.y2 && slots.y2[0] || {}).field || '';
+      const groupField = (slots.g && slots.g[0] || {}).field || '';
+      const rows = ccGetFilteredData();
+      const aggregated = ccAggregateData(rows);
+      var slotCfg = CC_SLOT_CONFIG[ccState.type] || CC_SLOT_CONFIG.bar;
+      var xLabel = (slotCfg.x || {}).label || 'X 轴';
+      var yLabel = (slotCfg.y || {}).label || 'Y 轴';
+      var gLabel = (slotCfg.g || {}).label || '分组';
+      const contextItems = ['<span class="cc-chart-context-item">' + xLabel + ' <strong>' + ccFieldName(xField) + '</strong></span>',
+        '<span class="cc-chart-context-item">' + yLabel + ' <strong>' + ccFieldName(yField) + '</strong></span>'];
+      if (y2Field) contextItems.push('<span class="cc-chart-context-item">Y2(折线) <strong>' + ccFieldName(y2Field) + '</strong></span>');
+      if (slotCfg.g && slotCfg.g.visible !== false) contextItems.push('<span class="cc-chart-context-item">' + gLabel + ' <strong>' + ccFieldName(groupField || '无') + '</strong></span>');
+      contextItems.push('<span class="cc-chart-context-item">版本 <strong>' + (ccState.version || '全部') + '</strong></span>');
+      contextItems.push('<span class="cc-chart-context-meta">筛选后 ' + rows.length + ' 行</span>');
+      const context = '<div class="cc-chart-context">' + contextItems.join('') + '</div>';
+      if (!rows.length || !aggregated.labels.length || !aggregated.series.length) {
+        container.innerHTML = context + '<div class="cc-preview-empty"><div>暂无符合筛选条件的数据</div></div>';
+        return;
+      }
+      const chart = document.createElement('div');
+      container.innerHTML = context;
+      container.appendChild(chart);
+      if (ccState.type === 'table') {
+        renderTableChart(chart, aggregated.labels, aggregated.series, ccFieldName(xField));
+        return;
+      }
+      chart.className = 'cc-chart-row';
+      chart.innerHTML = '<div class="cc-chart-viz" id="cc-edit-viz"></div><div class="cc-chart-foot" id="cc-edit-viz-foot"></div>';
+      const viz = document.getElementById('cc-edit-viz');
+      if (ccState.type === 'bar') {
+        if (aggregated.series.length === 1) renderBarChart(viz, aggregated.labels, aggregated.series[0].values);
+        else renderGroupedBarChart(viz, aggregated.labels, aggregated.series);
+      } else if (ccState.type === 'stackedBar' || ccState.type === 'percentBar') {
+        var stackSeries = aggregated.series.map(function(s, i) { return { name: s.name, color: ['#2E5F95','#5AA0E6','#8FC0EF','#E68620','#10B981','#7C3AED'][i % 6], values: s.values.slice() }; });
+        if (ccState.type === 'percentBar') {
+          renderStackedSVG(viz, aggregated.labels, stackSeries);
+        } else {
+          renderStackedSVG(viz, aggregated.labels, stackSeries, false);
+        }
+      } else if (ccState.type === 'combo' || ccState.type === 'percentCombo' || ccState.type === 'areaCombo') {
+        var barColors = ['#2E5F95', '#5AA0E6', '#8FC0EF', '#BFDCF6', '#E68620', '#D97706'];
+        var barSeries = aggregated.series.map(function(s, i) {
+          return { name: s.name, color: barColors[i % barColors.length], values: s.values };
+        });
+        var lineValues = aggregated.labels.map(function(label) {
+          var matching = rows.filter(function(r) { return String(r[xField] == null ? '未设置' : r[xField]) === label; });
+          if (!matching.length || !y2Field) return null;
+          var sum = matching.reduce(function(acc, r) { return acc + Number(r[y2Field] || 0); }, 0);
+          return +(sum / matching.length).toFixed(1);
+        });
+        if (ccState.type === 'percentCombo') {
+          var percentSeries = barSeries.map(function(s) { return { name: s.name, color: s.color, values: s.values.map(function(v, i) { var total = barSeries.reduce(function(sum, item) { return sum + item.values[i]; }, 0); return total ? v / total : 0; }) }; });
+          renderStackedCombo(viz, aggregated.labels, percentSeries, lineValues, y2Field || '折线', true);
+        } else if (ccState.type === 'areaCombo') {
+          renderAreaCombo(viz, aggregated.labels, barSeries, lineValues, y2Field || '折线');
+        } else {
+          renderComboChart(viz, aggregated.labels, barSeries, lineValues, y2Field || '折线');
+        }
+      } else if (ccState.type === 'line' || ccState.type === 'lineMarkers') {
+        renderLineChart(viz, aggregated.labels, aggregated.series, ccState.type === 'lineMarkers');
+      } else if (ccState.type === 'bubble') {
+        renderBubbleChart(viz, aggregated.labels, aggregated.series);
+      } else if (ccState.type === 'pie') {
+        let labels = aggregated.labels;
+        let values = aggregated.series[0].values;
+        if (groupField) {
+          labels = [];
+          values = [];
+          aggregated.series.forEach(function(series) {
+            aggregated.labels.forEach(function(label, index) {
+              labels.push(series.name + ' · ' + label);
+              values.push(series.values[index]);
+            });
+          });
+        }
+        if (values.reduce(function(sum, value) { return sum + value; }, 0) <= 0) {
+          chart.innerHTML = '<div class="cc-preview-empty"><div>暂无可展示的有效数据</div></div>';
+        } else {
+          renderPieChart(viz, labels, values, ['#2E5F95','#5AA0E6','#8FC0EF','#BFDCF6','#E68620','#F0A94D','#D6E8F5']);
+        }
+      }
+    }
+
+    function ccRenderRawData(container) {
+      const rawData = ccGetFilteredData();
+      const cols = Object.keys(ccGenerateRawData()[0] || {});
+      const countEl = document.getElementById('cc-row-count');
+      if (countEl) countEl.textContent = '· ' + rawData.length;
+      const body = rawData.length ? rawData.map(function(row) { return '<tr>' + cols.map(function(c) { const v = row[c]; const isNum = typeof v === 'number'; return '<td class="' + (isNum ? 'num' : '') + '">' + v + '</td>'; }).join('') + '</tr>'; }).join('') : '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:24px;color:var(--text-3);">暂无符合筛选条件的数据</td></tr>';
+      container.innerHTML = '<table class="cc-raw-table"><thead><tr>' + cols.map(function(c) { const def = CC_FIELDS.find(function(f) { return f.key === c; }); const tag = def && def.type === 'dim' ? '<span style="font-size:8px;color:var(--primary);">D</span>' : def && def.type === 'metric' ? '<span style="font-size:8px;color:var(--brand-dark);">M</span>' : ''; return '<th>' + tag + ' ' + ((def && def.name) || c) + '</th>'; }).join('') + '</tr></thead><tbody>' + body + '</tbody></table><div style="text-align:center;padding:8px;font-size:11px;color:var(--text-3);">共 ' + rawData.length + ' 行 · 模拟数据</div>';
+    }
+
+    function ccSaveChart() {
+      if (!ccState.name.trim()) {
+        var y2Item = (ccState.slots.y2 || [])[0];
+        if (ccState.type === 'combo' && y2Item) {
+          ccState.name = ccFieldName((ccState.slots.x[0] || {}).field || 'X') + ' · ' + ccFieldName((ccState.slots.y[0] || {}).field || 'Y') + ' + ' + ccFieldName(y2Item.field || 'Y2') + ' (折柱图)';
+        } else {
+          ccState.name = ccFieldName((ccState.slots.x[0] || {}).field || 'X') + ' · ' + ccFieldName((ccState.slots.y[0] || {}).field || 'Y') + ' (' + CC_TYPE_NAMES[ccState.type] + ')';
+        }
+      }
+      if (editingChartId) {
+        const idx = customCharts.findIndex(function(c) { return c.id === editingChartId; });
+        if (idx >= 0) { customCharts[idx].name = ccState.name; customCharts[idx].config = JSON.parse(JSON.stringify(ccState)); customCharts[idx].updatedAt = new Date().toLocaleString('zh-CN', { hour12: false }); }
+      } else {
+        customCharts.push({ id: 'cc_' + Date.now(), name: ccState.name, config: JSON.parse(JSON.stringify(ccState)), createdAt: new Date().toLocaleString('zh-CN', { hour12: false }), updatedAt: new Date().toLocaleString('zh-CN', { hour12: false }) });
+      }
+      ccCloseEditor();
+      renderCustomCharts();
+    }
+
+    function renderCustomCharts() {
+      const grid = document.getElementById('custom-charts-grid');
+      const countEl = document.getElementById('custom-count');
+      if (!grid) return;
+      if (countEl) countEl.textContent = customCharts.length + ' 个图表';
+      if (customCharts.length === 0) { grid.innerHTML = '<div class="custom-empty"><div class="custom-empty-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></div><p>暂无自定义图表，点击「新建图表」创建</p></div>'; return; }
+      const typeNames = CC_TYPE_NAMES;
+      grid.innerHTML = customCharts.map(function(c) {
+        const cfg = c.config || {};
+        const previewId = 'cc-preview-' + c.id;
+        return '<div class="custom-card"><div class="custom-card-head"><div class="custom-card-title">' + c.name + '<span class="custom-card-type">' + (typeNames[cfg.type] || '图表') + '</span></div><div class="custom-card-actions"><button onclick="openCustomChartModal(\'' + c.id + '\')" title="编辑"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2h7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button onclick="deleteCustomChart(\'' + c.id + '\')" title="删除"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div><div class="custom-card-body" id="' + previewId + '"></div><div class="custom-card-foot"><span>数据：' + (cfg.version || '') + '</span><span>' + c.updatedAt + '</span></div></div>';
+      }).join('');
+      const previousState = ccState;
+      customCharts.forEach(function(c) {
+        const cfg = c.config || {};
+        const slots = cfg.slots || {};
+        ccState = Object.assign({}, cfg, { slots: { x: slots.x || [], y: slots.y || [], y2: slots.y2 || [], g: slots.g || [] }, filters: cfg.filters || {}, version: cfg.version || '', versionType: cfg.versionType || '发布版' });
+        const container = document.getElementById('cc-preview-' + c.id);
+        if (!container) return;
+        const rows = ccGetFilteredData();
+        const aggregated = ccAggregateData(rows);
+        if (!rows.length || !aggregated.labels.length || !aggregated.series.length) {
+          container.innerHTML = '<div class="custom-chart-area"><div class="cc-preview-empty"><div>暂无符合筛选条件的数据</div></div></div>';
+          return;
+        }
+        container.innerHTML = '<div class="custom-chart-area" id="' + c.id + '-area"></div>';
+        var area = document.getElementById(c.id + '-area');
+        if (cfg.type === 'table') {
+          var xFieldTbl = (slots.x && slots.x[0] || {}).field || '区域';
+          renderTableChart(area, aggregated.labels, aggregated.series, ccFieldName(xFieldTbl));
+          return;
+        }
+        area.innerHTML = '<div class="cc-chart-row"><div class="cc-chart-viz" id="' + c.id + '-viz"></div><div class="cc-chart-foot" id="' + c.id + '-viz-foot"></div></div>';
+        var viz = document.getElementById(c.id + '-viz');
+        if (cfg.type === 'bar') {
+          if (aggregated.series.length === 1) renderBarChart(viz, aggregated.labels, aggregated.series[0].values);
+          else renderGroupedBarChart(viz, aggregated.labels, aggregated.series);
+        } else if (cfg.type === 'stackedBar' || cfg.type === 'percentBar') {
+          var stackSeriesCard = aggregated.series.map(function(s, i) { return { name: s.name, color: ['#2E5F95','#5AA0E6','#8FC0EF','#E68620','#10B981','#7C3AED'][i % 6], values: s.values.slice() }; });
+          if (cfg.type === 'percentBar') {
+            renderStackedSVG(viz, aggregated.labels, stackSeriesCard);
+          } else {
+            renderStackedSVG(viz, aggregated.labels, stackSeriesCard, false);
+          }
+        } else if (cfg.type === 'combo' || cfg.type === 'percentCombo' || cfg.type === 'areaCombo') {
+          var barColors = ['#2E5F95', '#5AA0E6', '#8FC0EF', '#BFDCF6', '#E68620', '#D97706'];
+          var barSeries = aggregated.series.map(function(s, i) { return { name: s.name, color: barColors[i % barColors.length], values: s.values }; });
+          var xField2 = (slots.x && slots.x[0] || {}).field || '区域';
+          var y2Field2 = (slots.y2 && slots.y2[0] || {}).field || '';
+          var lineVals = aggregated.labels.map(function(label) {
+            var m = rows.filter(function(r) { return String(r[xField2] == null ? '未设置' : r[xField2]) === label; });
+            if (!m.length || !y2Field2) return null;
+            var s = m.reduce(function(acc, r) { return acc + Number(r[y2Field2] || 0); }, 0);
+            return +(s / m.length).toFixed(1);
+          });
+          if (cfg.type === 'percentCombo') {
+            var percentSeriesCard = barSeries.map(function(s) { return { name: s.name, color: s.color, values: s.values.map(function(v, i) { var total = barSeries.reduce(function(sum, item) { return sum + item.values[i]; }, 0); return total ? v / total : 0; }) }; });
+            renderStackedCombo(viz, aggregated.labels, percentSeriesCard, lineVals, y2Field2 || '折线', true);
+          } else if (cfg.type === 'areaCombo') {
+            renderAreaCombo(viz, aggregated.labels, barSeries, lineVals, y2Field2 || '折线');
+          } else {
+            renderComboChart(viz, aggregated.labels, barSeries, lineVals, y2Field2 || '折线');
+          }
+        } else if (cfg.type === 'line' || cfg.type === 'lineMarkers') {
+          renderLineChart(viz, aggregated.labels, aggregated.series, cfg.type === 'lineMarkers');
+        } else if (cfg.type === 'bubble') {
+          renderBubbleChart(viz, aggregated.labels, aggregated.series);
+        } else if (cfg.type === 'pie') {
+          let labels = aggregated.labels;
+          let values = aggregated.series[0].values;
+          if (slots.g && slots.g.length) {
+            labels = [];
+            values = [];
+            aggregated.series.forEach(function(series) { aggregated.labels.forEach(function(label, index) { labels.push(series.name + ' · ' + label); values.push(series.values[index]); }); });
+          }
+          if (values.reduce(function(sum, value) { return sum + value; }, 0) <= 0) area.innerHTML = '<div class="cc-preview-empty"><div>暂无可展示的有效数据</div></div>';
+          else renderPieChart(viz, labels, values, ['#2E5F95','#E68620','#10B981','#7C3AED','#F59E0B','#6B7280','#EF4444','#3B82F6']);
+        }
+      });
+      ccState = previousState;
+    }
+
+    function deleteCustomChart(id) {
+      openConfirm({ title: '删除图表', desc: '确定要删除该自定义图表吗？删除后不可恢复。', okText: '删除', cancelText: '取消', onOk: function() { customCharts = customCharts.filter(function(c) { return c.id !== id; }); renderCustomCharts(); } });
+    }
+
+    /* ===== 页面渲染 ===== */
     function renderPage() {
+      const filterSelect = (id, key, label) => {
+        const opts = FILTER_OPTS[key];
+        return `<select class="chart-filter" id="${id}" onchange="onFixedFilterChange('${id}','${key}')">
+          ${opts.map(o => `<option value="${o}">${label}：${o}</option>`).join('')}
+        </select>`;
+      };
+
       const contentHtml = `
         <div class="page-title">数据看板</div>
 
-        <div class="card">
-          <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:360px;text-align:center;">
-            <div style="width:64px;height:64px;border-radius:16px;background:var(--primary-lighter);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-            </div>
-            <div style="font-size:15px;font-weight:600;color:var(--text-1);margin-bottom:6px;">数据看板</div>
-            <div style="font-size:13px;color:var(--text-3);max-width:360px;">该模块用于展示 IPV 预测数据的可视化看板，需求待补充。</div>
+        <div class="dash-tabsbar">
+          <div class="dash-tabs" role="tablist">
+            <button type="button" class="dash-tab active" id="dash-tab-fixed" role="tab" aria-selected="true" onclick="switchDashTab('fixed')">默认图表</button>
+            <button type="button" class="dash-tab" id="dash-tab-custom" role="tab" aria-selected="false" onclick="switchDashTab('custom')">自定义图表</button>
           </div>
+          <div class="dash-actions">
+            <button class="btn-view-toggle" id="fixed-grid-view-toggle" onclick="toggleFixedGridView()" aria-label="切换为两列视图" title="切换为两列视图">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1.5"/><rect x="13" y="2" width="9" height="9" rx="1.5"/><rect x="2" y="13" width="9" height="9" rx="1.5"/><rect x="13" y="13" width="9" height="9" rx="1.5"/></svg>
+            </button>
+            <button class="btn-add-chart" id="custom-add-btn" onclick="openCustomChartModal()" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新建图表
+            </button>
+          </div>
+        </div>
+
+        <div class="dash-tab-panel" id="dash-panel-fixed">
+        <div class="fixed-grid">
+          <!-- 1.1 规模 -->
+          <div class="chart-card">
+            <div class="chart-card-head">
+              <div class="chart-card-title"><span class="chart-badge">1.1</span>规模</div>
+              <div class="chart-card-filters">
+                ${filterSelect('scale-version', 'IPV版本', '版本')}
+                ${filterSelect('scale-market', '目标市场', '目标市场')}
+                ${scaleYearFilterHtml()}
+              </div>
+            </div>
+            <div class="chart-card-main">
+              <div class="chart-card-body" id="chart-scale-body"></div>
+              <div class="chart-card-foot" id="chart-scale-body-foot"></div>
+            </div>
+          </div>
+
+          <!-- 1.2 规模自定义 -->
+          <div class="chart-card">
+            <div class="chart-card-head">
+              <div class="chart-card-title"><span class="chart-badge">1.2</span>规模自定义</div>
+              <div class="chart-card-filters">
+                ${filterSelect('sc-region', '区域', '区域')}
+                ${filterSelect('sc-version', 'IPV版本', '版本')}
+                ${filterSelect('sc-country', '国家', '国家')}
+                ${filterSelect('sc-body', '车身大类', '车身大类')}
+                ${filterSelect('sc-regulation', '法规聚类', '法规')}
+                ${filterSelect('sc-market', '目标市场', '目标市场')}
+                ${filterSelect('sc-keycountry', '重点国家', '重点国家')}
+              </div>
+            </div>
+            <div class="chart-card-main">
+              <div class="chart-card-body" id="chart-scale-custom-body"></div>
+              <div class="chart-card-foot" id="chart-scale-custom-body-foot"></div>
+            </div>
+          </div>
+
+          <!-- 2.1 动力结构 -->
+          <div class="chart-card">
+            <div class="chart-card-head">
+              <div class="chart-card-title"><span class="chart-badge bc2">2.1</span>动力结构</div>
+              <div class="chart-card-filters">
+                ${filterSelect('power-version', 'IPV版本', '版本')}
+                ${filterSelect('power-body', '车身大类', '车身大类')}
+                ${filterSelect('power-market', '目标市场', '目标市场')}
+                ${filterSelect('power-year', '年份', '年份')}
+              </div>
+            </div>
+            <div class="chart-card-main">
+              <div class="chart-card-body" id="chart-power-body"></div>
+              <div class="chart-card-foot" id="chart-power-body-foot"></div>
+            </div>
+          </div>
+
+          <!-- 2.2 动力结构自定义 -->
+          <div class="chart-card">
+            <div class="chart-card-head">
+              <div class="chart-card-title"><span class="chart-badge bc2">2.2</span>动力结构自定义</div>
+              <div class="chart-card-filters">
+                ${filterSelect('pc-region', '区域', '区域')}
+                ${filterSelect('pc-version', 'IPV版本', '版本')}
+                ${filterSelect('pc-country', '国家', '国家')}
+                ${filterSelect('pc-body', '车身大类', '车身大类')}
+                ${filterSelect('pc-regulation', '法规聚类', '法规')}
+                ${filterSelect('pc-market', '目标市场', '目标市场')}
+                ${filterSelect('pc-keycountry', '重点国家', '重点国家')}
+              </div>
+            </div>
+            <div class="chart-card-main">
+              <div class="chart-card-body" id="chart-power-custom-body"></div>
+              <div class="chart-card-foot" id="chart-power-custom-body-foot"></div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div class="dash-tab-panel" id="dash-panel-custom" hidden>
+          <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">共 <span id="custom-count">0 个图表</span> · 支持自定义选择版本数据及图表类型</div>
+          <div class="custom-grid" id="custom-charts-grid"></div>
         </div>
       `;
       initPage({ activeKey: '数据看板', contentHtml });
     }
 
-    function onPageReady() {}
+    function onPageReady() {
+      initFixedCharts();
+      renderCustomCharts();
+    }
 
-    // 页面加载即渲染
     renderPage();
   </script>
 </body>
