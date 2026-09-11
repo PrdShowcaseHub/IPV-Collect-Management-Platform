@@ -12,7 +12,8 @@
     .flow-guide {
       width: 260px; flex-shrink: 0;
       background: #fff; border: 1px solid var(--border); border-radius: 10px;
-      padding: 18px 16px; display: flex; flex-direction: column; gap: 22px;
+      padding: 18px 16px; display: flex; flex-direction: column; gap: 16px;
+      overflow-y: auto;
     }
     .flow-guide h4 { font-size: 13px; font-weight: 600; color: var(--text-1); margin: 0; display:flex;align-items:center;gap:6px; }
     .flow-guide h4::before { content:''; width:3px; height:14px; background:var(--primary); border-radius:2px; }
@@ -28,6 +29,8 @@
     .flow-stage.s3 .stage-icon { background: #F0F5FF; color: #4A6FC9; }
     .flow-stage.s4 .stage-icon { background: #F3EEFD; color: #7C3AED; }
     .flow-stage.s5 .stage-icon { background: #F6FFED; color: #52C41A; }
+    .flow-stage.s6 .stage-icon { background: #E6FFFB; color: #0E7490; }
+    .flow-stage.s7 .stage-icon { background: #FFF1F2; color: #E11D48; }
     .flow-stage .stage-title { font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
     .flow-stage .stage-sub { font-size: 11px; color: var(--brand); font-weight:500; margin-bottom: 3px; }
     .flow-stage .stage-desc { font-size: 11px; color: var(--text-3); line-height: 1.5; }
@@ -91,16 +94,28 @@
       background: #fff; border: 1px solid var(--border); border-radius: 10px;
       padding: 16px; margin-top: 12px;
     }
-    .dim-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .dim-item { display: flex; flex-direction: column; gap: 4px; }
-    .dim-item label { font-size: 12px; color: var(--text-3); }
+    .dim-list { display: flex; flex-direction: column; gap: 6px; }
+    .dim-item { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+    .dim-item label { flex: 1; font-size: 12px; color: var(--text-1); font-weight: 500; }
     .dim-item select {
       border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
       font-size: 13px; background: #fff; color: var(--text-1); outline: none;
-      height: 34px;
+      height: 34px; width: 80px; flex-shrink: 0;
     }
     .dim-item select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-lighter); }
-    .dim-hint { font-size: 11px; color: var(--text-3); margin-top: 10px; line-height: 1.6; }
+    .dim-upload {
+      margin-top: 12px; padding: 12px; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      color: var(--primary); font-size: 12px; font-weight: 500;
+      background: var(--primary-lighter); border: 1px dashed var(--primary-border);
+    }
+    .dim-upload:hover { background: var(--primary-border); }
+    .dim-upload input[type="file"] { display: none; }
+    .dim-file-info { margin-top: 6px; }
+    .dim-file-name {
+      font-size: 12px; color: var(--success); background: var(--success-soft);
+      border-radius: 4px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px;
+    }
     .dim-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
 
     /* 输入区 */
@@ -121,13 +136,6 @@
       background: transparent;
     }
     .input-box textarea::placeholder { color: var(--text-3); }
-    .upload-btn-in-input {
-      width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
-      background: #fff; color: var(--text-2); cursor: pointer;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      transition: all .15s;
-    }
-    .upload-btn-in-input:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-lighter); }
     .send-btn {
       width: 48px; height: 48px; border-radius: 10px; border: none;
       background: var(--primary); color: #fff; cursor: pointer;
@@ -159,25 +167,23 @@
     })();
     function composeVersion(year, half, type, date) { return `${year}-${half}-IPV【${type}_${date}】`; }
 
-    // 合法维度组合（字段顺序：总量、动力、品类、品种、价格段、车格）
-    // 1=是, 0=否
-    const VALID_COMBOS = [
-      { name: '总量',            vals: [1,0,0,0,0,0] },
-      { name: '品类结构',        vals: [0,0,1,0,0,0] },
-      { name: '品类 品种结构',    vals: [0,0,1,1,0,0] },
-      { name: '动力结构',        vals: [0,1,0,0,0,0] },
-      { name: '品类 车格细分结构', vals: [0,0,1,0,0,1] },
-      { name: '品类 品种_价格段结构', vals: [0,0,1,1,1,0] },
-      { name: '品类 动力结构',    vals: [0,1,1,0,0,0] },
-      { name: '品类 品种_价格段_车格', vals: [0,0,1,1,1,1] },
-      { name: '品类 品种_价格段 车格_动力', vals: [0,1,1,1,1,1] },
+    // 模版调整可选维度组合（可多选置为「是」，需至少选择一种）
+    const ADJUST_COMBOS = [
+      '总量',
+      '动力结构',
+      '品类_动力',
+      '品类结构',
+      '品类_品种结构',
+      '品类_车格细分',
+      '品类_品种_价格段结构',
+      '品类_品种_价格段_车格',
+      '品类_品种_价格段_车格_动力',
     ];
-    const DIM_FIELDS = ['总量', '动力', '品类', '品种', '价格段', '车格'];
 
     // 消息列表
     let messages = [];
-    // 模版调整轮次（第1次没有保存按钮，第2次起有）
-    let templateRound = 0;
+    // 模版调整卡片自增编号（进入流程时用于生成卡片内控件的唯一 id）
+    let dimSeq = 0;
 
     function init() {
       const contentHtml = `
@@ -187,31 +193,43 @@
             <h4>预测数据全流程</h4>
             <div class="flow-stage s1">
               <div class="stage-icon">1</div>
-              <div class="stage-title">初版数据</div>
-              <div class="stage-sub">系统定期自动生成</div>
-              <div class="stage-desc">输入「初版数据」获取最新基线模版，作为调整基础。</div>
+              <div class="stage-title">IPV结果表与因子表生成与确认</div>
+              <div class="stage-sub">系统自动生成 · 结果确认</div>
+              <div class="stage-desc">确认 IPV 结果表与因子表已生成且口径一致，作为后续预测与调整的数据基础。</div>
             </div>
             <div class="flow-stage s2">
               <div class="stage-icon">2</div>
-              <div class="stage-title">模版 / 模型调整 <span class="flow-current-tag" id="current-stage-tag">当前</span></div>
-              <div class="stage-sub">人工调整循环</div>
-              <div class="stage-desc">选择维度组合下载模版，调整后上传回传，可多轮优化。</div>
+              <div class="stage-title">IPV人工预测因子补充</div>
+              <div class="stage-sub">人工补充 · 修正因子</div>
+              <div class="stage-desc">补充或修正影响 IPV 预测的人工因子，为预测调整提供输入。</div>
             </div>
             <div class="flow-stage s3">
               <div class="stage-icon">3</div>
-              <div class="stage-title">过程版数据</div>
-              <div class="stage-sub">保存为 Draft · 提交审批</div>
-              <div class="stage-desc">调整满意后保存为过程版，生成 Draft 版本号并提交审批。</div>
+              <div class="stage-title">初版数据-IPV预测调整</div>
+              <div class="stage-sub">自动生成 · 预测微调</div>
+              <div class="stage-desc">输入「初版数据」获取基线，结合补充因子完成 IPV 预测调整。</div>
             </div>
             <div class="flow-stage s4">
               <div class="stage-icon">4</div>
-              <div class="stage-title">审批</div>
-              <div class="stage-sub">审批中心流转</div>
-              <div class="stage-desc">提交后进入「审批中」，通过则变为「待发布」，驳回可重发。</div>
+              <div class="stage-title">模板 / 模型调整 <span class="flow-current-tag" id="current-stage-tag">当前</span></div>
+              <div class="stage-sub">人工调整 · 单次确认</div>
+              <div class="stage-desc">选择一种维度组合并上传待调整数据文件，系统按所选维度完成一次调整并返回结果。</div>
             </div>
             <div class="flow-stage s5">
               <div class="stage-icon">5</div>
-              <div class="stage-title">发布版数据</div>
+              <div class="stage-title">过程版数据生成</div>
+              <div class="stage-sub">保存为 Draft · 提交审批</div>
+              <div class="stage-desc">调整满意后保存为过程版，生成 Draft 版本号并提交审批。</div>
+            </div>
+            <div class="flow-stage s6">
+              <div class="stage-icon">6</div>
+              <div class="stage-title">数据审批</div>
+              <div class="stage-sub">审批中心流转</div>
+              <div class="stage-desc">提交后进入「审批中」，通过则变为「待发布」，驳回可重发。</div>
+            </div>
+            <div class="flow-stage s7">
+              <div class="stage-icon">7</div>
+              <div class="stage-title">数据发布</div>
               <div class="stage-sub">正式对外 · Publish / Update</div>
               <div class="stage-desc">同半年度首次发布为 Publish，再次发布为 Update。</div>
             </div>
@@ -231,9 +249,6 @@
             </div>
             <div class="input-area">
               <div class="input-box">
-                <button class="upload-btn-in-input" title="上传文件" onclick="quickUpload()">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                </button>
                 <textarea id="ws-input" rows="1" placeholder="输入指令，如「初版数据」，按 Enter 发送..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
               </div>
               <button class="send-btn" onclick="sendMessage()" title="发送">
@@ -260,17 +275,6 @@
       `;
       area.appendChild(row);
       area.scrollTop = area.scrollHeight;
-    }
-
-    function quickUpload() {
-      const html = `
-        <div class="chat-file-card" style="margin-top:0;">
-          <div class="ficon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-          <div class="finfo"><div class="fname">IPV数据文件.xlsx</div><div class="fmeta">156 KB · 已上传</div></div>
-          <span class="fbtn" style="color:var(--success);">✓</span>
-        </div>
-      `;
-      appendMessage('user', html);
     }
 
     function sendMessage() {
@@ -319,7 +323,6 @@
 
     function chooseTemplate() {
       appendMessage('user', '<div>模版调整</div>');
-      templateRound = 1;
       setTimeout(() => showDimensionPicker(), 400);
     }
     function chooseModel() {
@@ -342,98 +345,101 @@
         const html = `
           <div class="msg-title">人工上传</div>
           <div>直接上传你已调整好的过程版数据文件，无需走模版调整流程。</div>
-          <div style="margin-top:6px;color:var(--text-3);">请点击下方输入框左侧的上传按钮，选择 .xlsx / .xls / .csv 文件上传。</div>
+          <div style="margin-top:6px;color:var(--text-3);">请选择 .xlsx / .xls / .csv 文件，在上传控件中完成上传。</div>
         `;
         appendMessage('ai', html);
       }, 400);
     }
 
-    // 步骤3：维度选择卡片
+    // 步骤3：维度组合 + 文件上传（本轮仅调整一次）
     function showDimensionPicker() {
-      const isFirstRound = templateRound === 1;
-      const saveBtn = isFirstRound ? '' : `<button class="option-btn" style="background:#52C41A;color:#fff;border-color:#52C41A;" onclick="saveAsDraft()">保存为过程版数据</button>`;
+      dimSeq++;
+      const sid = dimSeq;
       const html = `
-        <div class="msg-title">请选择调整维度（组合互斥）</div>
+        <div class="msg-title">请选择调整维度组合，并上传需要调整的数据文件</div>
         <div class="dim-card">
-          <div class="dim-grid">
-            ${DIM_FIELDS.map((f, i) => `
+          <div class="dim-list">
+            ${ADJUST_COMBOS.map((name, i) => `
               <div class="dim-item">
-                <label>${f}</label>
-                <select id="dim-${i}" onchange="onDimChange(${i})">
+                <label>${name}</label>
+                <select id="dim-${sid}-${i}">
                   <option value="0">否</option>
                   <option value="1">是</option>
                 </select>
               </div>
             `).join('')}
           </div>
-          <div class="dim-hint">
-            合法组合：总量 / 品类结构 / 品类 品种结构 / 动力结构 / 品类 车格细分结构 / 品类 品种_价格段结构 / 品类 动力结构 / 品类 品种_价格段_车格 / 品类 品种_价格段 车格_动力
-          </div>
-          <div class="dim-actions" style="flex-direction:column;align-items:stretch;gap:10px;">
-            <div style="display:flex;gap:10px;align-items:center;">
-              <button class="option-btn" onclick="cancelDimension()">取消</button>
-              <button class="option-btn" style="background:var(--primary);color:#fff;" onclick="confirmDimension()">确认调整，继续下一轮</button>
-            </div>
-            ${isFirstRound ? '' : `
-              <div style="border-top:1px dashed var(--border);padding-top:10px;display:flex;align-items:center;gap:8px;">
-                <span style="font-size:11px;color:var(--text-3);">或结束流程，将本轮结果保存：</span>
-                <button class="option-btn" style="background:#52C41A;color:#fff;border-color:#52C41A;" onclick="saveAsDraft()">保存为过程版数据</button>
-              </div>
-            `}
+          <label class="dim-upload" for="dim-file-${sid}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>点击上传需要调整的 Excel 文件</span>
+            <input id="dim-file-${sid}" type="file" accept=".xlsx,.xls,.csv" onchange="onDimFile(${sid})">
+          </label>
+          <div class="dim-file-info" id="dim-file-info-${sid}"></div>
+          <div class="dim-actions">
+            <button class="option-btn" onclick="cancelDimension()">取消</button>
+            <button class="option-btn" style="background:var(--primary);color:#fff;" onclick="confirmDimension(${sid})">确认调整</button>
           </div>
         </div>
       `;
       appendMessage('ai', html);
-    }
-
-    function onDimChange(idx) {
-      // 互斥约束：选中某个为"是"时，强制其他不符合规则的为"否"
-      // 简单策略：不做实时强制，提交时校验
     }
 
     function cancelDimension() {
       appendMessage('user', '<div>取消</div>');
     }
 
-    function confirmDimension() {
-      const vals = DIM_FIELDS.map((_, i) => parseInt(document.getElementById('dim-' + i).value));
-      const combo = VALID_COMBOS.find(c => c.vals.every((v, i) => v === vals[i]));
-      if (!combo) {
-        alert('当前维度组合不合法，请参考下方合法组合列表重新选择。');
-        return;
-      }
-      appendMessage('user', `<div>已选择：${combo.name}</div>`);
-      setTimeout(() => replyTemplate(combo.name), 400);
+    function onDimFile(sid) {
+      const input = document.getElementById('dim-file-' + sid);
+      const box = document.getElementById('dim-file-info-' + sid);
+      if (!input || !box) return;
+      const f = input.files && input.files[0];
+      box.innerHTML = f ? `<div class="dim-file-name">✓ ${escapeHtml(f.name)}</div>` : '';
     }
 
-    // 步骤4：返回模版 + 上传回传
-    function replyTemplate(comboName) {
+    function confirmDimension(sid) {
+      const chosen = ADJUST_COMBOS.filter((_, i) => {
+        const el = document.getElementById('dim-' + sid + '-' + i);
+        return el && el.value === '1';
+      });
+      if (!chosen.length) {
+        alert('请至少选择一种维度组合并置为「是」。');
+        return;
+      }
+      const input = document.getElementById('dim-file-' + sid);
+      if (!input || !input.files || !input.files.length) {
+        alert('请先上传需要调整的 Excel 文件。');
+        return;
+      }
+      const comboLabel = chosen.join(' + ');
+      const fileName = input.files[0].name;
+      appendMessage('user', `
+        <div>已选择：${comboLabel}</div>
+        <div class="chat-file-card" style="margin-top:6px;background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4);">
+          <div class="ficon" style="color:#fff;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div class="finfo"><div class="fname" style="color:#fff;">${escapeHtml(fileName)}</div><div class="fmeta" style="color:rgba(255,255,255,.8);">待调整文件 · 已上传</div></div>
+          <span class="fbtn" style="color:#fff;">✓</span>
+        </div>
+      `);
+      setTimeout(() => replyAdjusted(chosen), 500);
+    }
+
+    // 步骤4：返回调整后的 Excel，流程结束（本轮仅调整一次）
+    function replyAdjusted(combos) {
+      const comboLabel = combos.join(' + ');
       const html = `
-        <div class="msg-title">已生成「${comboName}」调整模版</div>
-        <div>请下载模版进行调整，调整完成后上传回传：</div>
+        <div class="msg-title">已按「${comboLabel}」完成数据调整</div>
+        <div>已生成调整后的预测数据文件，请下载：</div>
         <div class="chat-file-card">
           <div class="ficon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-          <div class="finfo"><div class="fname">IPV调整模版_${comboName}_20260907.xlsx</div><div class="fmeta">128 KB · 第 ${templateRound} 轮调整</div></div>
-          <span class="fbtn" onclick="alert('开始下载：IPV调整模版_${comboName}_20260907.xlsx')">下载</span>
+          <div class="finfo"><div class="fname">IPV调整结果_${comboLabel}_20260907.xlsx</div><div class="fmeta">256 KB · 调整后数据</div></div>
+          <span class="fbtn" onclick="alert('开始下载：IPV调整结果_${comboLabel}_20260907.xlsx')">下载</span>
         </div>
+        <div class="msg-desc">本次模版调整流程结束，可将调整结果保存为过程版数据并提交审批。</div>
         <div class="option-group">
-          <button class="option-btn" onclick="reuploadTemplate()">上传调整后的模版</button>
+          <button class="option-btn" style="background:var(--primary);color:#fff;border-color:var(--primary);" onclick="saveAsDraft()">保存为过程版数据</button>
         </div>
       `;
       appendMessage('ai', html);
-    }
-
-    function reuploadTemplate() {
-      const html = `
-        <div class="chat-file-card" style="margin-top:0;">
-          <div class="ficon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-          <div class="finfo"><div class="fname">IPV调整模版_已调整.xlsx</div><div class="fmeta">132 KB · 已上传</div></div>
-          <span class="fbtn" style="color:var(--success);">✓</span>
-        </div>
-      `;
-      appendMessage('user', html);
-      templateRound++;
-      setTimeout(() => showDimensionPicker(), 600);
     }
 
     // 步骤5：保存为过程版数据
@@ -498,13 +504,13 @@
         okText: '确认保存', okType: 'primary',
         onOk: () => {
           closeModal();
-          // 更新流程面板"当前"标记到第3步（过程版数据）
+          // 更新流程面板"当前"标记到第5步（过程版数据生成）
           const tag = document.getElementById('current-stage-tag');
           if (tag) {
             tag.remove();
-            const stage3 = document.querySelectorAll('.flow-stage')[2];
-            if (stage3) {
-              const titleEl = stage3.querySelector('.stage-title');
+            const stage5 = document.querySelectorAll('.flow-stage')[4];
+            if (stage5) {
+              const titleEl = stage5.querySelector('.stage-title');
               if (titleEl) titleEl.insertAdjacentHTML('beforeend', ' <span class="flow-current-tag" id="current-stage-tag">当前</span>');
             }
           }
