@@ -121,6 +121,7 @@
     .line-viz { width:100%; height:280px; display:block; }
     .line-viz .grid-line { stroke:var(--border-soft); stroke-width:1; }
     .line-viz .axis-label { font-size:10px; fill:var(--text-3); font-family:var(--fn); }
+    .line-viz .line-label { font-size:8.5px; font-weight:600; }
     .line-viz .data-line { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
     .line-viz .data-point { stroke-width:2; }
 
@@ -796,9 +797,14 @@
       var lineMax = Math.max.apply(null, (lineValues || []).filter(function(v) { return v != null; }).concat([1]));
       var linePoints = (lineValues || []).map(function(v, i) { if (v == null) return null; return [pad.l + i * stepX, pad.t + ch - v / lineMax * ch]; }).filter(Boolean);
       var line = linePoints.length ? '<polyline points="' + linePoints.map(function(p) { return p.join(','); }).join(' ') + '" fill="none" stroke="#E68620" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />' + linePoints.map(function(p, i) { return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="#E68620" stroke="#fff" stroke-width="1.5" />'; }).join('') : '';
+      var axisLines = '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />' +
+        (linePoints.length ? '<line x1="' + (w - pad.r) + '" y1="' + pad.t + '" x2="' + (w - pad.r) + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />' : '') +
+        '<line x1="' + pad.l + '" y1="' + (pad.t + ch) + '" x2="' + (w - pad.r) + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />';
+      var yLabels = [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<text class="axis-label" x="' + (pad.l - 4) + '" y="' + (y + 3) + '" text-anchor="end">' + Math.round(p * maxVal) + '</text>'; }).join('');
+      var yRight = linePoints.length ? [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<text class="axis-label" x="' + (w - pad.r + 4) + '" y="' + (y + 3) + '" text-anchor="start">' + Math.round(p * lineMax) + '</text>'; }).join('') : '';
       var xLabels = labels.map(function(l, i) { return '<text class="axis-label" x="' + (pad.l + i * stepX) + '" y="' + (h-8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
       var legend = series.map(function(s, i) { return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>'; }).reverse().join('') + (line ? '<span class="legend-item"><span style="width:12px;height:2px;background:#E68620;display:inline-block"></span>' + lineLabel + '</span>' : '');
-      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + areas + line + xLabels + '</svg>';
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + areas + line + yLabels + yRight + xLabels + '</svg>';
       var foot = document.getElementById(container.id + '-foot');
       if (foot) foot.innerHTML = legend;
     }
@@ -807,13 +813,17 @@
       var w = Math.max(500, labels.length * 60), h = 280, pad = { t:35, r:25, b:30, l:45 };
       var cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
       var maxVal = Math.max.apply(null, series.flatMap(function(s) { return s.values; }).concat([1]));
+      var maxR = 7 + Math.sqrt(1) * 18, inset = maxR + 2;
+      var plotX0 = pad.l + inset, plotX1 = w - pad.r - inset, plotW = Math.max(plotX1 - plotX0, 1);
+      var plotY0 = pad.t + inset, plotY1 = pad.t + ch - inset, plotH = Math.max(plotY1 - plotY0, 1);
+      function bubbleX(i) { return plotX0 + (labels.length === 1 ? plotW / 2 : i * plotW / (labels.length - 1)); }
       var colors = ['#2E5F95', '#E68620', '#10B981', '#7C3AED', '#F59E0B', '#6B7280'];
       var grid = [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w - pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />'; }).join('');
       var axisLines = '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />' +
         '<line x1="' + pad.l + '" y1="' + (pad.t + ch) + '" x2="' + (w - pad.r) + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />';
       var yLabels = [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<text class="axis-label" x="' + (pad.l - 4) + '" y="' + (y + 3) + '" text-anchor="end">' + Math.round(p * maxVal) + '</text>'; }).join('');
-      var points = series.map(function(s, si) { return s.values.map(function(v, i) { var x = pad.l + (labels.length === 1 ? cw / 2 : i * cw / (labels.length - 1)); var y = pad.t + ch - v / maxVal * ch; var r = 7 + Math.sqrt(Math.max(v, 0) / maxVal) * 18; return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + colors[si % colors.length] + '" fill-opacity=".72" stroke="#fff" stroke-width="1.5"><title>' + s.name + ' · ' + labels[i] + ': ' + v + '</title></circle><text class="bar-label" x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" fill="#fff">' + v + '</text>'; }).join(''); }).join('');
-      var xLabels = labels.map(function(l, i) { var x = pad.l + (labels.length === 1 ? cw / 2 : i * cw / (labels.length - 1)); return '<text class="axis-label" x="' + x + '" y="' + (h - 8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
+      var points = series.map(function(s, si) { return s.values.map(function(v, i) { var x = bubbleX(i); var y = plotY1 - v / maxVal * plotH; var r = 7 + Math.sqrt(Math.max(v, 0) / maxVal) * 18; return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + colors[si % colors.length] + '" fill-opacity=".72" stroke="#fff" stroke-width="1.5"><title>' + s.name + ' · ' + labels[i] + ': ' + v + '</title></circle><text class="bar-label" x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" fill="#fff">' + v + '</text>'; }).join(''); }).join('');
+      var xLabels = labels.map(function(l, i) { var x = bubbleX(i); return '<text class="axis-label" x="' + x + '" y="' + (h - 8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
       var legend = series.map(function(s, i) { return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>'; }).reverse().join('');
       container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + points + yLabels + xLabels + '</svg>';
       var foot = document.getElementById(container.id + '-foot');
@@ -1016,7 +1026,7 @@
     }
 
     const CC_TYPE_ICONS = {
-      bar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="6" width="4" height="15"/><rect x="17" y="3" width="4" height="18"/></svg>',
+      bar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="4" height="9"/><rect x="8" y="7" width="4" height="13"/><rect x="14" y="13" width="4" height="7"/><rect x="19" y="5" width="2" height="15"/></svg>',
       stackedBar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="5" height="16"/><rect x="10" y="9" width="5" height="11"/><rect x="15" y="6" width="5" height="14"/></svg>',
       percentBar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="4"/><rect x="4" y="10" width="16" height="4"/><rect x="4" y="15" width="16" height="4"/></svg>',
       line: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/></svg>',
@@ -1028,7 +1038,7 @@
       pie: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>',
       table: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
     };
-    const CC_TYPE_NAMES = { bar: '柱形图', stackedBar: '堆积柱形图', percentBar: '百分比堆积柱形图', line: '折线图（无数据标记）', lineMarkers: '折线图（带数据标记）', combo: '折柱图', percentCombo: '折柱图（带百分比）', areaCombo: '折柱图（堆积面积）', bubble: '单气泡图', pie: '饼图', table: '表格' };
+    const CC_TYPE_NAMES = { bar: '簇状柱形图', stackedBar: '堆积柱形图', percentBar: '百分比堆积柱形图', line: '折线图（无数据标记）', lineMarkers: '折线图（带数据标记）', combo: '折柱图', percentCombo: '折柱图（带百分比）', areaCombo: '折柱图（堆积面积）', bubble: '单气泡图', pie: '饼图', table: '表格' };
 
     let ccRawDataCache = null;
 
@@ -1523,8 +1533,7 @@
       chart.innerHTML = '<div class="cc-chart-viz" id="cc-edit-viz"></div><div class="cc-chart-foot" id="cc-edit-viz-foot"></div>';
       const viz = document.getElementById('cc-edit-viz');
       if (ccState.type === 'bar') {
-        if (aggregated.series.length === 1) renderBarChart(viz, aggregated.labels, aggregated.series[0].values);
-        else renderGroupedBarChart(viz, aggregated.labels, aggregated.series);
+        renderGroupedBarChart(viz, aggregated.labels, aggregated.series);
       } else if (ccState.type === 'stackedBar' || ccState.type === 'percentBar') {
         var stackSeries = aggregated.series.map(function(s, i) { return { name: s.name, color: ['#2E5F95','#5AA0E6','#8FC0EF','#E68620','#10B981','#7C3AED'][i % 6], values: s.values.slice() }; });
         if (ccState.type === 'percentBar') {
@@ -1639,8 +1648,7 @@
         area.innerHTML = '<div class="cc-chart-row"><div class="cc-chart-viz" id="' + c.id + '-viz"></div><div class="cc-chart-foot" id="' + c.id + '-viz-foot"></div></div>';
         var viz = document.getElementById(c.id + '-viz');
         if (cfg.type === 'bar') {
-          if (aggregated.series.length === 1) renderBarChart(viz, aggregated.labels, aggregated.series[0].values);
-          else renderGroupedBarChart(viz, aggregated.labels, aggregated.series);
+          renderGroupedBarChart(viz, aggregated.labels, aggregated.series);
         } else if (cfg.type === 'stackedBar' || cfg.type === 'percentBar') {
           var stackSeriesCard = aggregated.series.map(function(s, i) { return { name: s.name, color: ['#2E5F95','#5AA0E6','#8FC0EF','#E68620','#10B981','#7C3AED'][i % 6], values: s.values.slice() }; });
           if (cfg.type === 'percentBar') {
