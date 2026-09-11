@@ -787,16 +787,23 @@
       var totals = labels.map(function(_, i) { return series.reduce(function(sum, s) { return sum + (s.values[i] || 0); }, 0); });
       var maxVal = Math.max.apply(null, totals.concat([1]));
       var grid = [0,.25,.5,.75,1].map(function(p) { var y = pad.t + ch - p * ch; return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w-pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />'; }).join('');
-      var areas = '', cumulative = labels.map(function() { return 0; });
+      var areas = '', cumulative = labels.map(function() { return 0; }), segLabels = '';
       series.forEach(function(s, si) {
         var top = s.values.map(function(v, i) { return [pad.l + i * stepX, pad.t + ch - ((cumulative[i] + v) / maxVal) * ch]; });
         var bottom = s.values.map(function(v, i) { return [pad.l + i * stepX, pad.t + ch - (cumulative[i] / maxVal) * ch]; }).reverse();
         areas += '<path d="M' + top.concat(bottom).map(function(p) { return p[0] + ',' + p[1]; }).join(' L') + ' Z" fill="' + colors[si % colors.length] + '" fill-opacity=".48" stroke="' + colors[si % colors.length] + '" stroke-width="1" />';
-        s.values.forEach(function(v, i) { cumulative[i] += v; });
+        s.values.forEach(function(v, i) {
+          var segH = (v / maxVal) * ch;
+          if (segH > 14) {
+            var midY = pad.t + ch - ((cumulative[i] + v / 2) / maxVal) * ch;
+            segLabels += '<text class="seg-label" x="' + (pad.l + i * stepX) + '" y="' + (midY + 3) + '" text-anchor="middle" fill="#374151">' + v + '</text>';
+          }
+          cumulative[i] += v;
+        });
       });
       var lineMax = Math.max.apply(null, (lineValues || []).filter(function(v) { return v != null; }).concat([1]));
       var linePoints = (lineValues || []).map(function(v, i) { if (v == null) return null; return [pad.l + i * stepX, pad.t + ch - v / lineMax * ch]; }).filter(Boolean);
-      var line = linePoints.length ? '<polyline points="' + linePoints.map(function(p) { return p.join(','); }).join(' ') + '" fill="none" stroke="#E68620" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />' + linePoints.map(function(p, i) { return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="#E68620" stroke="#fff" stroke-width="1.5" />'; }).join('') : '';
+      var line = linePoints.length ? '<polyline points="' + linePoints.map(function(p) { return p.join(','); }).join(' ') + '" fill="none" stroke="#E68620" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />' + linePoints.map(function(p, i) { return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="#E68620" stroke="#fff" stroke-width="1.5" />'; }).join('') + (lineValues || []).map(function(v, i) { if (v == null) return ''; return '<text class="line-label" x="' + (pad.l + i * stepX) + '" y="' + (pad.t + ch - v / lineMax * ch - 7) + '" text-anchor="middle" fill="#E68620">' + v + '</text>'; }).join('') : '';
       var axisLines = '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />' +
         (linePoints.length ? '<line x1="' + (w - pad.r) + '" y1="' + pad.t + '" x2="' + (w - pad.r) + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />' : '') +
         '<line x1="' + pad.l + '" y1="' + (pad.t + ch) + '" x2="' + (w - pad.r) + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />';
@@ -804,7 +811,7 @@
       var yRight = linePoints.length ? [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<text class="axis-label" x="' + (w - pad.r + 4) + '" y="' + (y + 3) + '" text-anchor="start">' + Math.round(p * lineMax) + '</text>'; }).join('') : '';
       var xLabels = labels.map(function(l, i) { return '<text class="axis-label" x="' + (pad.l + i * stepX) + '" y="' + (h-8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
       var legend = series.map(function(s, i) { return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>'; }).reverse().join('') + (line ? '<span class="legend-item"><span style="width:12px;height:2px;background:#E68620;display:inline-block"></span>' + lineLabel + '</span>' : '');
-      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + areas + line + yLabels + yRight + xLabels + '</svg>';
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + areas + segLabels + line + yLabels + yRight + xLabels + '</svg>';
       var foot = document.getElementById(container.id + '-foot');
       if (foot) foot.innerHTML = legend;
     }
