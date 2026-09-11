@@ -174,8 +174,10 @@
     .cc-editor-body { flex:1; display:grid; grid-template-columns:270px 400px minmax(0,1fr); overflow:hidden; }
 
     /* 左面板 — 字段列表 */
-    .cc-left { min-width:0; border-right:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; }
-    .cc-left-section { padding:12px 14px; border-bottom:1px solid var(--border-soft); }
+    .cc-left { min-width:0; min-height:0; border-right:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; }
+    .cc-left-section { padding:12px 14px; border-bottom:1px solid var(--border-soft); flex-shrink:0; }
+    .cc-left-fields { flex:1 1 0; min-height:240px; overflow-y:auto; }
+    .cc-left-type-section { flex:0 1 28%; min-height:0; overflow-y:auto; }
     .cc-left-title { font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
     .cc-field-search { width:100%; height:28px; border:1px solid var(--border); border-radius:5px; padding:0 8px; font-size:11px; color:var(--text-2); background:#fff; outline:none; margin-bottom:8px; }
     .cc-field-search:focus { border-color:var(--primary); }
@@ -802,15 +804,18 @@
     }
 
     function renderBubbleChart(container, labels, series) {
-      var w = Math.max(500, labels.length * 60), h = 280, pad = { t:20, r:25, b:30, l:45 };
+      var w = Math.max(500, labels.length * 60), h = 280, pad = { t:35, r:25, b:30, l:45 };
       var cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
       var maxVal = Math.max.apply(null, series.flatMap(function(s) { return s.values; }).concat([1]));
       var colors = ['#2E5F95', '#E68620', '#10B981', '#7C3AED', '#F59E0B', '#6B7280'];
       var grid = [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<line class="grid-line" x1="' + pad.l + '" y1="' + y + '" x2="' + (w - pad.r) + '" y2="' + y + '" stroke-dasharray="3,3" />'; }).join('');
+      var axisLines = '<line x1="' + pad.l + '" y1="' + pad.t + '" x2="' + pad.l + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />' +
+        '<line x1="' + pad.l + '" y1="' + (pad.t + ch) + '" x2="' + (w - pad.r) + '" y2="' + (pad.t + ch) + '" stroke="var(--border)" stroke-width="1" />';
+      var yLabels = [0, .25, .5, .75, 1].map(function(p) { var y = pad.t + ch - p * ch; return '<text class="axis-label" x="' + (pad.l - 4) + '" y="' + (y + 3) + '" text-anchor="end">' + Math.round(p * maxVal) + '</text>'; }).join('');
       var points = series.map(function(s, si) { return s.values.map(function(v, i) { var x = pad.l + (labels.length === 1 ? cw / 2 : i * cw / (labels.length - 1)); var y = pad.t + ch - v / maxVal * ch; var r = 7 + Math.sqrt(Math.max(v, 0) / maxVal) * 18; return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + colors[si % colors.length] + '" fill-opacity=".72" stroke="#fff" stroke-width="1.5"><title>' + s.name + ' · ' + labels[i] + ': ' + v + '</title></circle><text class="bar-label" x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" fill="#fff">' + v + '</text>'; }).join(''); }).join('');
       var xLabels = labels.map(function(l, i) { var x = pad.l + (labels.length === 1 ? cw / 2 : i * cw / (labels.length - 1)); return '<text class="axis-label" x="' + x + '" y="' + (h - 8) + '" text-anchor="middle">' + l + '</text>'; }).join('');
       var legend = series.map(function(s, i) { return '<span class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' + s.name + '</span>'; }).reverse().join('');
-      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + points + xLabels + '</svg>';
+      container.innerHTML = '<svg class="combo-viz" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">' + grid + axisLines + points + yLabels + xLabels + '</svg>';
       var foot = document.getElementById(container.id + '-foot');
       if (foot) foot.innerHTML = legend;
     }
@@ -1323,8 +1328,8 @@
         '<div class="cc-editor-body">' +
         '<div class="cc-left">' +
         '<div class="cc-left-section"><div class="cc-left-title">数据源</div><div style="font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:#10B981;"></span>IPV 预测数据（模拟）</div></div>' +
-        '<div class="cc-left-section" style="flex:1;overflow-y:auto;"><input class="cc-field-search" placeholder="搜索字段..." oninput="ccRenderFields(this.value)" /><div class="cc-field-group-label">维度</div><div id="cc-field-list-dim"></div><div class="cc-field-group-label">度量</div><div id="cc-field-list-metric"></div></div>' +
-        '<div class="cc-left-section" style="padding:0;"><div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--text-3);">图表类型</div><div class="cc-type-grid" id="cc-type-grid">' + [['柱形图',['bar','stackedBar','percentBar']],['折线图',['line','lineMarkers']],['折柱图',['combo','percentCombo','areaCombo']],['其他',['bubble','pie','table']]].map(function(group) { return '<div class="cc-type-group"><div class="cc-type-group-title">' + group[0] + '</div><div class="cc-type-group-options">' + group[1].map(function(type) { return '<div class="cc-type-card ' + (ccState.type === type ? 'active' : '') + '" data-type="' + type + '" onclick="ccSelectType(\'' + type + '\')">' + CC_TYPE_ICONS[type] + '<span>' + CC_TYPE_NAMES[type] + '</span></div>'; }).join('') + '</div></div>'; }).join('') + '</div></div>' +
+        '<div class="cc-left-section cc-left-fields"><input class="cc-field-search" placeholder="搜索字段..." oninput="ccRenderFields(this.value)" /><div class="cc-field-group-label">维度</div><div id="cc-field-list-dim"></div><div class="cc-field-group-label">度量</div><div id="cc-field-list-metric"></div></div>' +
+        '<div class="cc-left-section cc-left-type-section" style="padding:0;"><div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--text-3);">图表类型</div><div class="cc-type-grid" id="cc-type-grid">' + [['柱形图',['bar','stackedBar','percentBar']],['折线图',['line','lineMarkers']],['折柱图',['combo','percentCombo','areaCombo']],['其他',['bubble','pie','table']]].map(function(group) { return '<div class="cc-type-group"><div class="cc-type-group-title">' + group[0] + '</div><div class="cc-type-group-options">' + group[1].map(function(type) { return '<div class="cc-type-card ' + (ccState.type === type ? 'active' : '') + '" data-type="' + type + '" onclick="ccSelectType(\'' + type + '\')">' + CC_TYPE_ICONS[type] + '<span>' + CC_TYPE_NAMES[type] + '</span></div>'; }).join('') + '</div></div>'; }).join('') + '</div></div>' +
         '<div class="cc-left-section"><div class="cc-left-title">数据版本</div><div class="cc-version-group"><div class="cc-version-label">版本类型</div><select class="cc-version-select" onchange="ccOnVersionTypeChange(this.value)"><option value="发布版"' + (ccState.versionType === '发布版' ? ' selected' : '') + '>发布版 (Publish)</option><option value="更新版"' + (ccState.versionType === '更新版' ? ' selected' : '') + '>更新版 (Update)</option></select></div><div class="cc-version-group"><div class="cc-version-label">版本号</div><select class="cc-version-select" id="cc-version-select" onchange="ccOnVersionChange(this.value)">' + versionOpts + '</select></div></div>' +
         '</div>' +
         '<div class="cc-middle">' +
