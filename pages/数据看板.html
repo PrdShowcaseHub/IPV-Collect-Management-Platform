@@ -579,7 +579,7 @@
         // 柱顶总计
         const total = totals[i];
         const totalY = pad.t + ch - (total / maxBar) * ch;
-        return `${segs}<text class="bar-label" x="${x + barW/2}" y="${totalY - 4}" text-anchor="middle">${total}</text>`;
+        return `${segs}<text class="bar-label" x="${x + barW/2}" y="${totalY - 4}" text-anchor="middle">${Number(total).toFixed(1)}</text>`;
       }).join('');
 
       // X轴标签
@@ -600,7 +600,7 @@
         // 数据标签
         const labelY = v < 0 ? y + 14 : y - 8;
         const fillColor = v < 0 ? '#EF4444' : lineColor;
-        lineDots.push(`<text class="line-label" x="${x}" y="${labelY}" text-anchor="middle" fill="${fillColor}">${v > 0 ? '+' : ''}${v}%</text>`);
+        lineDots.push(`<text class="line-label" x="${x}" y="${labelY}" text-anchor="middle" fill="${fillColor}">${v > 0 ? '+' : ''}${Number(v).toFixed(1)}%</text>`);
       });
       const polyline = linePts.length > 0 ? `<polyline points="${linePts.join(' ')}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />` : '';
 
@@ -656,7 +656,7 @@
         const yRightTicks = [0, lineMax * 0.25, lineMax * 0.5, lineMax * 0.75, lineMax];
         yRight = yRightTicks.map(v => {
           const y = pad.t + ch - (v / lineMax) * ch;
-          return `<text class="axis-label" x="${w-pad.r+4}" y="${y+3}" text-anchor="start">${Math.round(v)}%</text>`;
+          return `<text class="axis-label" x="${w-pad.r+4}" y="${y+3}" text-anchor="start">${Number(v).toFixed(1)}%</text>`;
         }).join('');
       }
 
@@ -691,7 +691,7 @@
           const y = pad.t + ch - (v / lineMaxLocal) * ch;
           linePts.push(`${x},${y}`);
           lineDots.push(`<circle cx="${x}" cy="${y}" r="3" fill="${lineColor}" stroke="#fff" stroke-width="1.5" />`);
-          lineDots.push(`<text class="line-label" x="${x}" y="${y - 7}" text-anchor="middle" fill="${lineColor}">${v}%</text>`);
+          lineDots.push(`<text class="line-label" x="${x}" y="${y - 7}" text-anchor="middle" fill="${lineColor}">${Number(v).toFixed(1)}%</text>`);
         });
       }
       const polyline = `<polyline points="${linePts.join(' ')}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
@@ -1045,7 +1045,7 @@
       pie: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>',
       table: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
     };
-    const CC_TYPE_NAMES = { bar: '簇状柱形图', stackedBar: '堆积柱形图', percentBar: '百分比堆积柱形图', line: '折线图（无数据标记）', lineMarkers: '折线图（带数据标记）', combo: '折柱图', percentCombo: '折柱图（带百分比）', areaCombo: '折柱图（堆积面积）', bubble: '单气泡图', pie: '饼图', table: '表格' };
+    const CC_TYPE_NAMES = { bar: '簇状柱形图', stackedBar: '堆积柱形图', percentBar: '百分比堆积柱形图', line: '折线图（无数据标记）', lineMarkers: '折线图（带数据标记）', combo: '折柱图', percentCombo: '折柱图（百分比堆积）', areaCombo: '折柱图（堆积面积）', bubble: '单气泡图', pie: '饼图', table: '表格' };
 
     let ccRawDataCache = null;
 
